@@ -1,9 +1,20 @@
 # Test Infrastructure — Animal World Zoo
 
 **Engine**: Unity 6.3 LTS (`6000.3.17f1`)
-**Test Framework**: Unity Test Framework (NUnit, built-in)
+**Test Framework**: Unity Test Framework (NUnit) — `com.unity.test-framework` in `Packages/manifest.json`
 **CI**: `.github/workflows/tests.yml`
 **Setup date**: 2026-06-06
+
+> ⚠️ **IMPORTANT — where Unity test code lives.** Unity only compiles and discovers
+> scripts under **`Assets/`**. The runnable test assemblies therefore live at:
+> - `Assets/Tests/EditMode/` — Edit Mode tests (what CI runs; what Unity Test Runner finds)
+> - `Assets/Tests/PlayMode/` — Play Mode tests (add when integration tests are needed)
+>
+> This `tests/` directory at the repo root is the **studio-workflow** home: smoke-test
+> checklist, manual evidence, and docs read by `/smoke-check`, `/qa-plan`, and `/gate-check`.
+> The `.asmdef` templates here reference `AWZ.Domain`/`AWZ.Data` (not yet created) and are
+> **copied into `Assets/Tests/` once those assemblies exist** — they are NOT compiled while
+> outside `Assets/`.
 
 ## Directory Layout
 
