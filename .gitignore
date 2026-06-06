@@ -6,6 +6,11 @@
 # See: https://github.com/github/gitignore/tree/main/Global
 #
 .utmp/
+
+# Claude Code Game Studios — ephemeral production state (per .claude/docs/directory-structure.md)
+/production/session-state/
+/production/session-logs/
+
 /[Ll]ibrary/
 /[Tt]emp/
 /[Oo]bj/
