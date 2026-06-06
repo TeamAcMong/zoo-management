@@ -1,87 +1,101 @@
 # Technical Preferences
 
-<!-- Populated by /setup-engine. Updated as the user makes decisions throughout development. -->
+<!-- Populated by /setup-engine (Unity 6.3 LTS, 2026-06-06). Updated as decisions are made. -->
 <!-- All agents reference this file for project-specific standards and conventions. -->
 
 ## Engine & Language
 
-<!-- This project uses NO game engine. It is a browser React app. /setup-engine does not apply. -->
+- **Engine**: Unity **6.3 LTS** (`6000.3.17f1`), 2D
+- **Language**: C# (.NET, C# 9)
+- **Rendering**: Universal Render Pipeline (URP) **2D**
+- **UI**: UI Toolkit (UXML + USS) — Unity 6 runtime UI default (replaces UGUI)
+- **Input**: Input System package
+- **Physics**: None (UI/management/idle game — no physics engine)
+- **Data**: ScriptableObjects for content (animal database, tuning configs)
+- **Persistence**: JSON file at `Application.persistentDataPath` (NOT PlayerPrefs for the save blob)
 
-- **Engine**: None — vanilla web (browser-native)
-- **Framework**: React 18.3.1 + ReactDOM 18.3.1 (UMD from unpkg CDN)
-- **Language**: JavaScript / JSX, transpiled in-browser by @babel/standalone 7.29.0
-- **Rendering**: DOM + CSS (no canvas/WebGL game loop); React component tree mounted at `#root`
-- **Physics**: None (UI/management game — no physics engine)
+> The React 18 / Babel / DOM build in `act/*.jsx` is the **reference prototype** only,
+> not the shipping target. See `docs/architecture/architecture.md`.
 
 ## Input & Platform
 
-<!-- Read by /ux-design, /ux-review, /test-setup, /team-ui, and /dev-story to scope -->
-<!-- interaction specs, test helpers, and implementation to the correct input methods. -->
+<!-- Read by /ux-design, /ux-review, /test-setup, /team-ui, /dev-story. -->
 
-- **Target Platforms**: Web / Browser — desktop and mobile builds both shipped
-- **Input Methods**: Mouse/Pointer + Touch
-- **Primary Input**: Touch (mobile build renders a phone frame: `<Phone fullscreen />`); pointer on desktop
+- **Target Platforms**: Mobile (iOS / Android) primary + WebGL
+- **Input Methods**: Touch + Pointer/Mouse (via Input System; UI Toolkit handles UI events)
+- **Primary Input**: Touch
 - **Gamepad Support**: None
-- **Touch Support**: Full (mobile build uses `user-scalable=no`, `viewport-fit=cover`)
-- **Platform Notes**: Targets must work with tap and click; no hover-only interactions. Two layouts: desktop (`Animal World Zoo.html`) and mobile (`Animal World Zoo (mobile).html`).
+- **Touch Support**: Full (tap-driven management UI; no hover-only interactions)
+- **Platform Notes**: Mobile-first portrait UI. WebGL persistence uses IndexedDB-backed
+  `persistentDataPath` — verify flush-on-close in-browser (architecture QQ-05). No hover-only
+  affordances (touch has no hover).
 
 ## Naming Conventions
 
-<!-- JavaScript/React conventions for the act/ source. -->
+<!-- Unity / C# conventions. -->
 
-- **Components**: PascalCase React function components (e.g., `LiveScene`, `Phone`)
-- **Variables/functions**: camelCase (e.g., `currentQuest`, `handleTap`)
-- **Events/handlers**: `handleX` / `onX` (e.g., `handleSelect`, `onClose`)
-- **Files**: kebab-case `.jsx` in `act/` (e.g., `live-scene.jsx`, `quest-admin.jsx`)
-- **CSS**: kebab-case class names; files grouped by concern (`act.css`, `kit.css`, `colors_and_type.css`)
-- **Constants**: UPPER_SNAKE_CASE for module-level constants
+- **Classes**: PascalCase (e.g., `CareService`, `GameController`); MonoBehaviours match file name
+- **Public properties/fields**: PascalCase (e.g., `MoveSpeed`, `GoldPerSec`)
+- **Private fields**: `_camelCase` (e.g., `_gameState`, `_tickAccumulator`)
+- **Methods**: PascalCase (e.g., `DoAction()`, `TryPay()`)
+- **Interfaces**: `I` prefix (e.g., `ICurrencyService`, `ISaveService`)
+- **Files**: PascalCase matching the type (e.g., `CareService.cs`, `AnimalDef.cs`)
+- **ScriptableObjects**: PascalCase asset + `[CreateAssetMenu]` (e.g., `AnimalDef`, `TuningConfig`)
+- **UI Toolkit**: UXML/USS files PascalCase per screen (e.g., `HudScreen.uxml`, `HudScreen.uss`); USS class names kebab-case
+- **Constants**: PascalCase or UPPER_SNAKE_CASE for tuning constants
+- **Assemblies**: `AWZ.Domain`, `AWZ.Data`, `AWZ.Runtime`, `AWZ.UI`, `AWZ.Tests.*`
 
 ## Performance Budgets
 
-- **Target Framerate**: 60 fps (smooth UI animations/transitions)
+- **Target Framerate**: 60 fps
 - **Frame Budget**: 16.6 ms
-- **Draw Calls**: N/A (DOM-based; watch DOM node count and re-render churn instead)
-- **Memory Ceiling**: [TO BE CONFIGURED — set when a target device is chosen]
+- **Draw Calls**: keep low — 2D + UI Toolkit; batch sprites, single Canvas/UIDocument per screen
+- **Memory Ceiling**: [TO BE CONFIGURED — set when a target mobile device is chosen]
 
 ## Testing
 
-- **Framework**: [TO BE CONFIGURED]
+- **Framework**: Unity Test Framework (NUnit) — EditMode (Domain unit tests) + PlayMode (integration)
 - **Minimum Coverage**: [TO BE CONFIGURED]
-- **Required Tests**: Balance formulas, gameplay systems, networking (if applicable)
+- **Required Tests**: Balance/economy formulas (C2, C3 curves), care/decay logic (C1), save/migration (F3), caps & gates (Fe2/Fe3/Fe4). Domain assembly is engine-agnostic → unit-testable headless in CI.
 
 ## Forbidden Patterns
 
 <!-- Add patterns that should never appear in this project's codebase -->
-- [None configured yet — add as architectural decisions are made]
+- `UnityEngine` references inside the `AWZ.Domain` assembly (domain must stay engine-agnostic)
+- Hardcoded gameplay values in code (use ScriptableObjects / tuning configs)
+- Mutating `GameState` outside `GameController.Apply` (single ordered mutation pipeline)
+- UGUI (Canvas) for new UI — use UI Toolkit (UGUI is deprecated for new projects in Unity 6)
 
 ## Allowed Libraries / Addons
 
 <!-- Add approved third-party dependencies here -->
-- [None configured yet — add as dependencies are approved]
+- Unity packages: Input System, UI Toolkit (built-in), Unity Test Framework
+- [Add others as approved — Addressables/Json.NET only when actively integrated]
 
 ## Architecture Decisions Log
 
 <!-- Quick reference linking to full ADRs in docs/architecture/ -->
-- [No ADRs yet — use /architecture-decision to create one]
+- See `docs/architecture/architecture.md` (Required ADRs ADR-0001…ADR-0010 — none Accepted yet)
 
 ## Engine Specialists
 
-<!-- No game engine is used. There are no godot/unity/unreal specialists for this project. -->
 <!-- Read by /code-review, /architecture-decision, /architecture-review, and team skills. -->
 
-- **Primary**: ui-programmer (React/web is UI-driven)
-- **Language/Code Specialist**: gameplay-programmer (game logic in `act/*.jsx`)
-- **Shader Specialist**: N/A (no shaders — DOM/CSS rendering)
-- **UI Specialist**: ui-programmer + ux-designer
-- **Additional Specialists**: technical-artist (CSS/visual polish), economy-designer / systems-designer (zoo management balance)
-- **Routing Notes**: This is a vanilla React + Babel-standalone web app — no engine specialist applies. Route `.jsx` game logic to gameplay-programmer, interface/layout work to ui-programmer, and visual/CSS polish to technical-artist. Use ux-designer for flow and interaction specs.
+- **Primary**: unity-specialist
+- **Language/Code Specialist**: unity-specialist (C# review)
+- **Shader Specialist**: unity-shader-specialist (Shader Graph, HLSL, URP 2D materials)
+- **UI Specialist**: unity-ui-specialist (UI Toolkit UXML/USS, runtime UI)
+- **Additional Specialists**: unity-addressables-specialist (only if/when remote content is added); economy-designer / systems-designer (zoo balance)
+- **Routing Notes**: Invoke primary for architecture and general C# review. Invoke UI specialist for all UI Toolkit work. Invoke shader specialist for URP 2D materials/effects. DOTS/Netcode specialists do NOT apply (no ECS, single-player). Keep the `AWZ.Domain` assembly engine-agnostic.
 
 ### File Extension Routing
 
 | File Extension / Type | Specialist to Spawn |
 |-----------------------|---------------------|
-| Game code / components (`act/*.jsx`) | gameplay-programmer / ui-programmer |
-| Styles (`act/*.css`) | technical-artist / ui-programmer |
-| HTML shells (`Animal World Zoo*.html`) | ui-programmer |
-| Data / config (`data.jsx`) | systems-designer / economy-designer |
-| General architecture review | technical-director |
+| Game code (`.cs`) | unity-specialist |
+| Domain logic (`AWZ.Domain/**.cs`) | unity-specialist (verify no UnityEngine ref) |
+| UI files (`.uxml`, `.uss`) | unity-ui-specialist |
+| Shader / material (`.shader`, `.shadergraph`, `.mat`) | unity-shader-specialist |
+| Scene / prefab (`.unity`, `.prefab`) | unity-specialist |
+| Data / config (ScriptableObject `.asset`, `.cs` defs) | systems-designer / economy-designer |
+| General architecture review | unity-specialist / technical-director |

@@ -24,33 +24,93 @@
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 1
-last_updated: ""
+version: 2
+last_updated: "2026-06-06"
+# Seeded 2026-06-06 from the create-architecture TR extraction (architecturally
+# significant requirements per system). `adr` field links each TR to its governing
+# ADR(s); see docs/architecture/traceability-matrix.md for the full matrix.
 
-requirements: []
+requirements:
+  # ─── F1 Animal Database ────────────────────────────────────────────────
+  - { id: TR-F1-001, system: animal-database, gdd: design/gdd/animal-database.md, requirement: "ANIMALS = immutable data layer, 29 species, 10 fields per record (key,emoji,name,species,tier,habitat,taming,appeal,unlock,perform)", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F1-002, system: animal-database, gdd: design/gdd/animal-database.md, requirement: "Appeal ladder strictly non-decreasing by unlock level; 29 values 3..3000, sum 17468", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F1-003, system: animal-database, gdd: design/gdd/animal-database.md, requirement: "UNLOCKS derived from ANIMALS[].unlock (single source of truth; no drift)", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F1-004, system: animal-database, gdd: design/gdd/animal-database.md, requirement: "Cost formulas: unlock=roundNice(500*1.06^(lv-1)); buy=round(appeal*22*cnt)+50; upgrade=round(appeal*160*encLv)+300; enrich=round(appeal*40*(enrLv+1))+200 (multipliers are tuning knobs)", adr: [ADR-0006, ADR-0009], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F1-005, system: animal-database, gdd: design/gdd/animal-database.md, requirement: "Missing-key fallback appeal=1; invalid unlock string -> lv=1", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
 
-# --- EXAMPLE ENTRIES (remove when first real entries are added) ---
-#
-# - id: TR-combat-001
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Player takes damage from enemies based on attack power minus defence"
-#   created: 2026-03-10
-#   revised: ""
-#   status: active
-#
-# - id: TR-combat-002
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Combo window timing is 0.4 seconds between hits"
-#   created: 2026-03-10
-#   revised: "2026-04-01"
-#   status: active
-#
-# - id: TR-combat-003
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Old damage formula using raw stats"
-#   created: 2026-03-10
-#   revised: ""
-#   status: superseded-by: TR-combat-001
+  # ─── F2 Currency System ────────────────────────────────────────────────
+  - { id: TR-F2-001, system: currency-system, gdd: design/gdd/currency-system.md, requirement: "Five currencies: Gold, Gems, Zoo XP, Conservation Tokens, Reputation", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F2-002, system: currency-system, gdd: design/gdd/currency-system.md, requirement: "No-negative-balance guard: TryPay rejects if balance<cost; atomic, no partial deduction", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F2-003, system: currency-system, gdd: design/gdd/currency-system.md, requirement: "Animals never purchasable with Gems; enforced at purchase validation", adr: [ADR-0003, ADR-0009], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F2-004, system: currency-system, gdd: design/gdd/currency-system.md, requirement: "XP accumulates monotonically; level derived from LEVEL_XP; MAX_LEVEL 92 guard", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F2-005, system: currency-system, gdd: design/gdd/currency-system.md, requirement: "Starting balances Gold 50, Gems 10, XP 0, Tokens 0, Rep 0 (registry constants)", adr: [ADR-0004, ADR-0006], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F2-006, system: currency-system, gdd: design/gdd/currency-system.md, requirement: "Offline negative-clock guard: elapsed<=0 accrues 0 gold", adr: [ADR-0005], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F2-007, system: currency-system, gdd: design/gdd/currency-system.md, requirement: "Cost multiplier knobs BUY=22/UPGRADE=160/ENRICH=40 data-driven (balance pass pending)", adr: [ADR-0006, ADR-0009], created: 2026-06-06, revised: "", status: active }
+
+  # ─── F3 Save / Load ────────────────────────────────────────────────────
+  - { id: TR-F3-001, system: save-load, gdd: design/gdd/save-load.md, requirement: "Single JSON blob at Application.persistentDataPath/awz_save.json; version field in blob", adr: [ADR-0004], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F3-002, system: save-load, gdd: design/gdd/save-load.md, requirement: "Schema v1 = full GameState incl. closedAt, vip, encLv, enrLv, built, counts, chapterIdx, claimed", adr: [ADR-0004], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F3-003, system: save-load, gdd: design/gdd/save-load.md, requirement: "Save: debounce 300ms on change; flush immediately on pause/focus-loss/quit stamping closedAt", adr: [ADR-0004, ADR-0005], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F3-004, system: save-load, gdd: design/gdd/save-load.md, requirement: "Load once at boot before first frame; no flash of defaults", adr: [ADR-0004], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F3-005, system: save-load, gdd: design/gdd/save-load.md, requirement: "Forward-only migration chain keyed on version (pure transforms)", adr: [ADR-0004], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F3-006, system: save-load, gdd: design/gdd/save-load.md, requirement: "Fallbacks: corrupt/newer-version -> backup+fresh+toast; quota/private-mode -> memory-only+banner; never crash", adr: [ADR-0004], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-F3-007, system: save-load, gdd: design/gdd/save-load.md, requirement: "WebGL persistence (IndexedDB-backed) must flush durably before tab close", adr: [ADR-0004], created: 2026-06-06, revised: "", status: active }
+
+  # ─── C1 Animal Care ────────────────────────────────────────────────────
+  - { id: TR-C1-001, system: animal-care, gdd: design/gdd/animal-care.md, requirement: "Per-animal meters: hunger, thirst, clean, happy, trust (0..100 int, clamped)", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C1-002, system: animal-care, gdd: design/gdd/animal-care.md, requirement: "Decay on wall-clock cadence (recalibrated to ~daily per OQ-3); trust never decays", adr: [ADR-0005], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C1-003, system: animal-care, gdd: design/gdd/animal-care.md, requirement: "Care action ordered: gate stat>=98, gate gold>=cost, adjust meters, pay, +3 XP, bump counter", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C1-004, system: animal-care, gdd: design/gdd/animal-care.md, requirement: "Action deltas: Feed/Water/Bathe +100 clamp; Play happy+100 trust+4; Heal happy+40 trust+2", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C1-005, system: animal-care, gdd: design/gdd/animal-care.md, requirement: "Action cost = round(baseCost*(1+tier*0.4)); base feed40/water10/clean20/heal30/play0", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C1-006, system: animal-care, gdd: design/gdd/animal-care.md, requirement: "happyMult = clamp(0.4 + avgHappiness/100, 0.5, 1.4)", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C1-007, system: animal-care, gdd: design/gdd/animal-care.md, requirement: "Adoption seeds meters (non-starter trust 30; admin-unlock trust 40)", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+
+  # ─── C2 Zoo Economy ────────────────────────────────────────────────────
+  - { id: TR-C2-001, system: zoo-economy, gdd: design/gdd/zoo-economy.md, requirement: "appealOf = baseAppeal*count*(1+0.25*(encLv-1))*(1+0.10*enrLv)", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C2-002, system: zoo-economy, gdd: design/gdd/zoo-economy.md, requirement: "totalAppeal = round(sum(appealOf)*happyMult)", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C2-003, system: zoo-economy, gdd: design/gdd/zoo-economy.md, requirement: "capacity = round((5+sum(seatsOf))*(1+0.15*built)); seatsOf=baseAppeal*count*(0.6+0.5*(encLv-1))", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C2-004, system: zoo-economy, gdd: design/gdd/zoo-economy.md, requirement: "visitors = min(round(appeal*1.0), capacity)", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C2-005, system: zoo-economy, gdd: design/gdd/zoo-economy.md, requirement: "goldPerSec = max(1, round(visitors*0.05*(1+0.12*built)))", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C2-006, system: zoo-economy, gdd: design/gdd/zoo-economy.md, requirement: "Income accrues 1/sec real time while active; offline 60% capped 8h/24h", adr: [ADR-0005], created: 2026-06-06, revised: "", status: active }
+
+  # ─── C3 Zoo Level ──────────────────────────────────────────────────────
+  - { id: TR-C3-001, system: zoo-level, gdd: design/gdd/zoo-level.md, requirement: "levelFromXp linear scan of LEVEL_XP; level 1..92", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C3-002, system: zoo-level, gdd: design/gdd/zoo-level.md, requirement: "LEVEL_XP 92-entry curve from 7 anchors (geometric interp); endgame perLv~1.0698", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C3-003, system: zoo-level, gdd: design/gdd/zoo-level.md, requirement: "XP sources: care +3, adopt +40, quest +300..3000, activity +20..240; offline stub inert", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C3-004, system: zoo-level, gdd: design/gdd/zoo-level.md, requirement: "Single level-up notify even on multi-level cross; unlock gate runs after final level", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C3-005, system: zoo-level, gdd: design/gdd/zoo-level.md, requirement: "Content unlock gate: if level<required reject (animals/habitats/attractions)", adr: [ADR-0009], created: 2026-06-06, revised: "", status: active }
+
+  # ─── C4 Taming ─────────────────────────────────────────────────────────
+  - { id: TR-C4-001, system: taming, gdd: design/gdd/taming.md, requirement: "Per-animal trust 0..100 in meters; Play+4/Heal+2/Enrichment+8; never decays; persisted (F3)", adr: [ADR-0003, ADR-0004], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C4-002, system: taming, gdd: design/gdd/taming.md, requirement: "Thriving status at trust>=68", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C4-003, system: taming, gdd: design/gdd/taming.md, requirement: "Trust gates ENFORCED: Petting>=40, Performer>=80 (was data-only — now numeric check)", adr: [ADR-0009], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-C4-004, system: taming, gdd: design/gdd/taming.md, requirement: "Show reward = round(sum(appeal*6)*crowd_mult); crowd_mult 1.0/1.2/1.5 by avg_trust; star 1/2/3 (interim-owned here pending Fe5)", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+
+  # ─── Fe1 Animal Collection ─────────────────────────────────────────────
+  - { id: TR-Fe1-001, system: animal-collection, gdd: design/gdd/animal-collection.md, requirement: "unlockAnimal: gate level>=u.lv AND gold>=u.gold; else flash & return", adr: [ADR-0009], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe1-002, system: animal-collection, gdd: design/gdd/animal-collection.md, requirement: "buyMore: reject if count>=capOf(key); else pay & increment pops", adr: [ADR-0009], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe1-003, system: animal-collection, gdd: design/gdd/animal-collection.md, requirement: "confirmBuy: pay(gold) (never gems), add to owned, +40 XP, seed care meters", adr: [ADR-0003], created: 2026-06-06, revised: "", status: active }
+
+  # ─── Fe2 Habitat ───────────────────────────────────────────────────────
+  - { id: TR-Fe2-001, system: habitat-system, gdd: design/gdd/habitat-system.md, requirement: "encLv per species 1..5; capOf = 2+(encLv-1)", adr: [ADR-0009], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe2-002, system: habitat-system, gdd: design/gdd/habitat-system.md, requirement: "Upgrade ENFORCES encLv<5 cap (prototype missing guard) + gold gate", adr: [ADR-0009], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe2-003, system: habitat-system, gdd: design/gdd/habitat-system.md, requirement: "multOf = 1+0.25*(encLv-1) feeds C2 appeal", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+
+  # ─── Fe3 Enrichment ────────────────────────────────────────────────────
+  - { id: TR-Fe3-001, system: enrichment, gdd: design/gdd/enrichment.md, requirement: "enrLv per species; ENFORCES MAX_ENRICH_LEVEL=5 cap (prototype unbounded)", adr: [ADR-0009], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe3-002, system: enrichment, gdd: design/gdd/enrichment.md, requirement: "enrichFactor = 1+0.10*enrLv multiplicative in appealOf; +18 happy/+8 trust per level, no XP", adr: [ADR-0003, ADR-0006], created: 2026-06-06, revised: "", status: active }
+
+  # ─── Fe4 Attractions ───────────────────────────────────────────────────
+  - { id: TR-Fe4-001, system: attractions, gdd: design/gdd/attractions.md, requirement: "ATTRACTIONS 5 items; build ENFORCES level>=unlock (prototype missing) + no double-build + gold", adr: [ADR-0009], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe4-002, system: attractions, gdd: design/gdd/attractions.md, requirement: "built<=5 feeds C2: capacity *(1+0.15*built), goldPerSec *(1+0.12*built)", adr: [ADR-0006], created: 2026-06-06, revised: "", status: active }
+
+  # ─── Fe6 Quests / Missions ─────────────────────────────────────────────
+  - { id: TR-Fe6-001, system: quests-missions, gdd: design/gdd/quests-missions.md, requirement: "chapterIdx/serviceIdx cursors + counts{} persisted (F3)", adr: [ADR-0004, ADR-0010], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe6-002, system: quests-missions, gdd: design/gdd/quests-missions.md, requirement: "claimQuest idempotent via claimed-set/cursor (no re-claim across migration)", adr: [ADR-0010], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe6-003, system: quests-missions, gdd: design/gdd/quests-missions.md, requirement: "Counters bump on COMPLETION not start (fixes start-cancel-restart farm)", adr: [ADR-0010], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe6-004, system: quests-missions, gdd: design/gdd/quests-missions.md, requirement: "Daily missions: 5/day, unlock Lv7, 24h UTC reset, 5-15 gems/mission (Gem faucet)", adr: [ADR-0010], created: 2026-06-06, revised: "", status: active }
+
+  # ─── Fe7 Idle / Offline ────────────────────────────────────────────────
+  - { id: TR-Fe7-001, system: idle-offline, gdd: design/gdd/idle-offline.md, requirement: "closedAt UTC saved on close; elapsed = clamp(now-closedAt,0,cap)", adr: [ADR-0004, ADR-0005], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe7-002, system: idle-offline, gdd: design/gdd/idle-offline.md, requirement: "offlineGold = floor(min(elapsed,cap)*goldPerSec*0.60); cap 28800 free/86400 vip", adr: [ADR-0005], created: 2026-06-06, revised: "", status: active }
+  - { id: TR-Fe7-003, system: idle-offline, gdd: design/gdd/idle-offline.md, requirement: "Resume modal only if elapsed>threshold; pending reward collected on tap; no double-count", adr: [ADR-0005], created: 2026-06-06, revised: "", status: active }

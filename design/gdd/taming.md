@@ -480,7 +480,7 @@ No crash or undefined state results; `clamp()` handles the 0 floor correctly.
 | System | GDD | What they consume from C4 |
 |--------|-----|--------------------------|
 | **Fe4 Attractions System** | `design/gdd/attractions.md` (not yet authored) | Petting Area participant filter reads `ANIMALS[k].taming` (rank ≤ 2 check). PROPOSED: should also read `meters[k].trust >= threshold`. |
-| **Fe5 Performance System** | `design/gdd/educational-shows.md` (not yet authored) | ShowStage reads `meters[a.key].trust` live for every performer to compute crowd_mult, star_rating. Performance Arena participant gate reads `ANIMALS[k].perform`. PROPOSED: should gate on `meters[k].trust >= PERFORM_TRUST_THRESHOLD`. |
+| **Fe5 Performance System** | `design/gdd/educational-shows.md` (not yet authored) | ShowStage reads `meters[a.key].trust` live for every performer to compute crowd_mult, star_rating. Performance Arena participant gate reads `ANIMALS[k].perform`. PROPOSED: should gate on `meters[k].trust >= PERFORM_TRUST_THRESHOLD`. ⚠️ Until that GDD exists, the **show-reward economy formula** it would own (`show_reward`, `show_rep`, `show_xp`, crowd-mult tiers) is **interim-documented and owned by this Taming GDD** — see §3.1/§4.3 and the ownership note in §6. |
 | **P3 Care Screen** | — | Displays the trust bar (❤️) and the taming difficulty chip (`TAMING[a.taming]`). Display-only read of `meters[k].trust` and `ANIMALS[k].taming`. |
 | **P5 Attractions Screen** | — | Filters participant lists using `ANIMALS[k].taming` and `ANIMALS[k].perform`. Display-only. |
 
@@ -491,8 +491,15 @@ No crash or undefined state results; `clamp()` handles the 0 floor correctly.
   that trust deltas flow from `adjust()` calls in C1. This is correct.
 - When Fe4 Attractions GDD is authored, it must note: "C4 Taming gates Petting Area
   participant eligibility via `ANIMALS[k].taming` rank check."
-- When Fe5 Performance GDD is authored, it must note: "C4 Taming gates show reward
-  quality via live trust values in `meters[k].trust`."
+- **Show-reward formula ownership (interim).** The show economy formula
+  (`show_reward = round(Σ appeal × 6 × crowd_mult)`, `show_rep`, `show_xp`, the crowd-mult
+  tiers at trust 50/70, and the 1–3★ star rating) is documented in §3.1 / §4.3 of THIS
+  GDD. Because the Fe5 Performance GDD (`educational-shows.md`) does not yet exist and
+  `attractions.md` defers show detail to it, **C4 Taming is the interim owning document
+  for this formula** — it feeds C2 Zoo Economy (gold) and C3 Zoo Level (XP), so it must
+  not be left ownerless. When the Fe5 Performance GDD is authored, it **inherits** this
+  ownership and must note: "C4 Taming gates show reward quality via live trust values in
+  `meters[k].trust`," and the formula body should move there with a back-reference here.
 
 ---
 

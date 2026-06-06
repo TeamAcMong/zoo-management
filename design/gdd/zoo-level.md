@@ -94,11 +94,11 @@ reinforce each other without either feeling grind-like.
 | Quest chapter completion | +300 – +3,000 XP | On `claimQuest(q)` for chapters 1–7 | `prototype.jsx: setXp(x => x + q.rw.xp)` |
 | Tutorial step reward (selected steps) | Varies (Gold-only in current impl.) | On `nextTut()` when `s.rw.xp` is set | `tutorial.jsx: nextTut → setXp` |
 | Entertainment activity completion | +20 – +240 XP | On `finishActivity()` for `xp`-bearing activities | `prototype.jsx: setXp(x => x + a.xp)` |
-| Offline/idle session collect (prototype stub) | +820 XP (hardcoded demo) | Offline modal "Collect rewards" button | `prototype.jsx: setXp(x => x + 820)` |
+| Offline/idle session collect (prototype stub) | +820 XP (hardcoded demo — does **not** fire in normal play) | Offline modal "Collect rewards" button — the `offline` state is never set `true` in any reachable path (see `idle-offline.md` §Edge Cases / OQ-1), so this grant is currently inert | `prototype.jsx: setXp(x => x + 820)` |
 
 **Notes:**
 - The tutorial steps in the current implementation (`tutorial.jsx`) award Gold only (`rw: { gold: N }`) — no `rw.xp` entries. The infrastructure to grant tutorial XP exists (`nextTut` checks `s.rw.xp`), but the current step definitions do not use it. ⚠️ This is an open gap.
-- The offline XP value (+820) is a prototype demo constant, not a computed formula. See Open Questions.
+- The offline XP value (+820) is a prototype demo constant, not a computed formula. ⚠️ Per `idle-offline.md`, the offline modal that hosts the Collect button is currently **unreachable** (its `offline` React state is never set to `true`), so this +820 grant does **not** actually fire in normal play. Both GDDs agree it is an inert stub pending the Fe7 offline rewrite. See Open Questions (OQ-3).
 - Not all entertainment activities carry XP. Activities with `xp` field: `photo_rabbit` (+20), `photo_pony` (+24), `photo_monkey` (+30), `edu_monkey` (+120), `edu_elephant` (+180), `edu_dolphin` (+240). Feeding, riding, and premium activities yield Gold/Reputation only.
 
 ---
@@ -213,7 +213,7 @@ live `level` value (which is correct).
 | Fe6 New-Player Quests | +300 to +3,000 per chapter | On claiming a completed chapter (7 chapters total) |
 | Fe5 Entertainment Activities | +20 to +240 per run | Only activities with an `xp` field; photo and edu categories |
 | P7 Tutorial (infrastructure only) | XP-capable but currently 0 | Tutorial steps have no `rw.xp` entries as of 2026-06-06 |
-| Fe7 Idle/Offline | Demo: +820 per session | Prototype stub only; real formula TBD |
+| Fe7 Idle/Offline | Demo: +820 per session | Prototype stub only — modal unreachable, grant currently inert (see `idle-offline.md`); real formula TBD |
 
 **Systems that read Zoo Level (downstream consumers):**
 
@@ -492,7 +492,7 @@ is prevented by the implementation). This is acceptable at current XP rates.
 | **Fe2 Habitat System** | `design/gdd/habitat-system.md` | Habitat unlock levels (Lv6, Lv20, Lv32, Lv60, Lv70, Lv84) must be reachable on the curve. |
 | **Fe4 Attractions** | `design/gdd/attractions.md` | Attraction unlock levels (Lv7, Lv18, Lv26, Lv30, Lv45) must be reachable on the curve. |
 | **Fe5 Performance** | `design/gdd/educational-shows.md` | Educational activities are the highest XP/run source (up to 240/run). Show XP rates must be consistent with progression pacing. |
-| **Fe6 New-Player Quests** | `design/gdd/quests.md` | Quest XP awards are defined in `data.jsx QUESTS[].rw.xp` (300–3,000). Quest completion contributes meaningful early-game XP. Level-gated quest objectives (`{t:'level', n:N}`) reference the level derived here. |
+| **Fe6 New-Player Quests** | `design/gdd/quests-missions.md` | Quest XP awards are defined in `data.jsx QUESTS[].rw.xp` (300–3,000). Quest completion contributes meaningful early-game XP. Level-gated quest objectives (`{t:'level', n:N}`) reference the level derived here. |
 | **Fe7 Idle/Offline** | `design/gdd/idle-offline.md` | Offline XP formula (currently a prototype stub at 820 XP/session) must be specified consistently with the overall XP economy. |
 | **P1 HUD** | `design/gdd/hud.md` | Renders XP bar using `xpPct`, `curLvXp`, `nextLvXp`, `atMaxLevel`, and the level integer. |
 | **P7 Tutorial** | `design/gdd/tutorial.md` | Tutorial step 9 introduces Zoo Level concept; XP rewards in tutorial steps are infrastructure-ready but currently award 0 XP. |

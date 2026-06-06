@@ -2,11 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| **Engine Version** | Unity 6.3 LTS |
+| **Engine Version** | Unity 6.3 LTS (`6000.3.17f1`) |
 | **Release Date** | December 2025 |
-| **Project Pinned** | 2026-02-13 |
+| **Project Pinned** | 2026-06-06 |
 | **Last Docs Verified** | 2026-02-13 |
 | **LLM Knowledge Cutoff** | May 2025 |
+| **Risk Level** | HIGH — Unity 6 line is post-cutoff; always cross-reference this directory |
+
+> `ProjectSettings/ProjectVersion.txt` is pinned to `6000.3.17f1 (cf0352b38e81)` (QQ-01 resolved
+> 2026-06-06). This 6.3 LTS reference library applies to the whole 6000.3.x patch line.
 
 ## Knowledge Gap Warning
 

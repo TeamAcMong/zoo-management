@@ -536,7 +536,7 @@ not complete counts). See Open Questions OQ-2.
 | **C3 Zoo Level Progression** | `design/gdd/zoo-level.md` | Quest chapter claim calls `setXp(x => x + q.rw.xp)` — a faucet into C3's XP pool. This relationship is bidirectional with C3 also gating quest level objectives. |
 | **F2 Currency System** | `design/gdd/currency-system.md` | Quest Gold awards are a faucet into the F2 Gold balance. Fe6 is documented in F2 as a Gold faucet (§ Interactions table). Gem faucet role (daily missions, designed) is not yet live. |
 | **F3 Save / Load System** | `design/gdd/save-load.md` | `chapterIdx`, `serviceIdx`, and `counts` must be persisted. Without F3, all quest progress resets on session end. ⚠️ F3 is NOT yet implemented — all quest state is currently ephemeral. |
-| **P6 Quests Screen** | `design/gdd/hud.md` (not yet authored) | The `views-quests.jsx` design-doc view displays the chapter breakdown and reward table. The `QuestTracker` FAB component is the live interactive layer. |
+| **P6 Quests Screen** | `design/ux/quests-screen.md` (not yet authored) | The `views-quests.jsx` design-doc view displays the chapter breakdown and reward table. The `QuestTracker` FAB component is the live interactive layer. |
 | **M1 Live Events** | — (not yet authored) | Daily and weekly mission infrastructure will be required for seasonal event objectives. Fe6's `counts` object will need to be extended or supplemented with event-scoped counters. |
 
 ---

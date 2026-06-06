@@ -5,20 +5,23 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
 
 ## Technology Stack
 
-- **Engine**: None — vanilla web (browser-native, no game engine)
-- **Framework**: React 18.3.1 + ReactDOM 18.3.1 (UMD, loaded from unpkg CDN)
-- **Language**: JavaScript / JSX, transpiled in-browser by @babel/standalone 7.29.0
-- **Build System**: None — no bundler/transpile step; `.jsx` is fetched and compiled at runtime by Babel
-- **Asset Pipeline**: Static files served over HTTP; fonts from Google Fonts (Plus Jakarta Sans)
-- **Run**: `run-game.ps1` / `run-game.cmd` — dependency-free PowerShell static server (see `RUN-GAME.md`)
+- **Engine**: Unity **6.3 LTS** (`6000.3.17f1`), 2D
+- **Language**: C# (.NET, C# 9)
+- **Rendering**: Universal Render Pipeline (URP) 2D
+- **UI**: UI Toolkit (UXML + USS) — the Unity 6 runtime UI default (replaces UGUI)
+- **Input**: Input System package
+- **Build System**: Unity Build Pipeline
+- **Asset Pipeline**: Unity Asset Import Pipeline (Addressables deferred — not used for MVP)
+- **Target Platforms**: Mobile (iOS / Android) primary + WebGL
 - **Version Control**: Git with trunk-based development
 
-> **Note**: This project does NOT use Godot/Unity/Unreal, so the engine-specialist
-> agents (`godot-specialist`, `unity-specialist`, `unreal-specialist`) and the
-> `/setup-engine` skill do not apply. Code lives in `act/*.jsx` (React components)
-> and `act/*.css`. There is no compile step — edit a source file and refresh the
-> browser. Treat `ui-programmer` / `ux-designer` / `gameplay-programmer` as the
-> relevant specialists for this web codebase.
+> **Note**: The shipping target is a **Unity 2D** app. The React 18 / Babel / DOM build
+> in `act/*.jsx` is retained as the **playable reference prototype** (rules/feel reference),
+> NOT the shipping codebase. The 13 GDDs are authoritative for rules, formulas, and balance;
+> their JSX "Source files" notes are read as prototype reference. Game code lives in C#
+> (`Assets/Scripts/**`); route work to `unity-specialist` (architecture + C#),
+> `unity-ui-specialist` (UI Toolkit), and `unity-shader-specialist` (URP materials/shaders).
+> See `docs/architecture/architecture.md` for the Unity blueprint.
 
 ## Project Structure
 
@@ -26,13 +29,16 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
 
 ## Engine Version Reference
 
-No game engine is used. Pinned web dependencies (loaded from CDN at runtime):
+@docs/engine-reference/unity/VERSION.md
 
-- React / ReactDOM **18.3.1**
-- @babel/standalone **7.29.0** (in-browser JSX transpile)
-
-These are referenced by `<script>` tags in the `Animal World Zoo*.html` files with
-Subresource Integrity hashes. Bump versions there if upgrading.
+> Engine pinned at Unity 6.3 LTS (`6000.3.17f1`). Unity 6 is **post-LLM-cutoff** —
+> always check `docs/engine-reference/unity/` (breaking-changes, deprecated-apis,
+> current-best-practices, modules/) before suggesting any Unity API.
+> `ProjectSettings/ProjectVersion.txt` is pinned to `6000.3.17f1` — install that editor
+> patch in Unity Hub before opening the project.
+>
+> Reference prototype only (not shipping): React/ReactDOM 18.3.1 + @babel/standalone
+> 7.29.0, loaded via CDN in the `Animal World Zoo*.html` files.
 
 ## Technical Preferences
 

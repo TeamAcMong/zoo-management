@@ -1,0 +1,20 @@
+{
+    "name": "PlayModeTests",
+    "rootNamespace": "AWZ.Tests.PlayMode",
+    "references": [
+        "AWZ.Domain",
+        "AWZ.Data",
+        "AWZ.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
