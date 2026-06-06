@@ -11,6 +11,14 @@ jobs:
     name: Run Unity Tests
     runs-on: ubuntu-latest
 
+    # Required so game-ci can post test results as a GitHub Check annotation.
+    # Without checks:write the run logs "Resource not accessible by integration"
+    # AFTER tests pass (the test result itself is unaffected).
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
