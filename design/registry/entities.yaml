@@ -181,11 +181,13 @@ formulas:
     variables:
       - appeal      # ANIMALS[k].appeal, 3–3000
       - count       # current owned count before purchase
-      - mult        # BUY_COST_MULT = 11
-    output_range: [50, 33050]   # Dolphin 2nd copy ≈ 33,050
-    expression: "buyCost = round(appeal × 11 × count) + 50"
-    notes: "REVISED 2026-06-06 — mult halved 22→11 (appeal max is now 3000). ⚠️ Provisional —
-      confirm with a full /balance-check ROI pass. Source: prototype.jsx buyMoreAnimal + proto-screens.jsx."
+      - mult        # BUY_COST_MULT = 50
+    output_range: [100, 150050]   # Dolphin 2nd copy ≈ 150,050
+    expression: "buyCost = round(appeal × 50 × count) + 50"
+    notes: "REVISED 2026-06-06 (balance-check pass) — mult raised 11→50 to close the
+      8.5× ROI gap vs enclosure upgrades. Target payback ~10 min; upgrade target ~15 min → 1.5× gap.
+      Previous values: was 22, then provisionally halved to 11.
+      Source: prototype.jsx buyMoreAnimal + proto-screens.jsx."
     added: 2026-06-06
     revised: "2026-06-06"
 

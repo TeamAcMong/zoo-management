@@ -1,0 +1,14 @@
+{
+    "name": "AWZ.UI",
+    "rootNamespace": "AWZ.UI",
+    "references": ["AWZ.Domain", "AWZ.Runtime"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

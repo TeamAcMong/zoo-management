@@ -1,0 +1,16 @@
+Animal and icon artwork in this folder are from the Noto Emoji project by Google.
+
+Source:  https://github.com/googlefonts/noto-emoji
+License: Apache License 2.0
+         https://www.apache.org/licenses/LICENSE-2.0
+
+Copyright Google Inc.
+
+Noto Emoji is the emoji set used natively on Android. Used here as the game's
+animal and UI icon art. Apache 2.0 permits commercial use; this notice is
+retained to satisfy the license. Before Google Play launch, surface this
+attribution in an in-app credits/legal screen as well.
+
+Files (512x512 PNG): Animals/ (rabbit, chicken, goat, sheep, pig, deer, penguin,
+monkey, zebra, giraffe, lion, elephant) and UI/ (coin, gem, star, feed, water,
+clean, pet).

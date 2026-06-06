@@ -142,7 +142,7 @@ function Phone({ fullscreen }) {
 
   function buyMoreAnimal(k){
     if (cntOf(k) >= capOf(k)){ flash(t('fx.enc_full')); return; }
-    const cost = Math.round((AA[k].appeal||1) * 11 * cntOf(k)) + 50;   // mult halved (was 22) — appeal max is now 3000
+    const cost = Math.round((AA[k].appeal||1) * 50 * cntOf(k)) + 50;   // balance-check 2026-06-06: raised 11→50 (was 22→11); target ~10 min payback
     if (gold < cost){ flash(t('fx.need_gold', { cost: cost.toLocaleString() })); return; }
     pay(cost); setPops(p=>({ ...p, [k]: cntOf(k)+1 })); flash(t('fx.plus_one_animal', { name: nameOf(k) }));
     setNameInput(nameOf(k)); setRenameKey(k);

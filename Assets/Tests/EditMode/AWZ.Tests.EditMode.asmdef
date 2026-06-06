@@ -3,7 +3,8 @@
     "rootNamespace": "AWZ.Tests.EditMode",
     "references": [
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "AWZ.Domain"
     ],
     "includePlatforms": [
         "Editor"
