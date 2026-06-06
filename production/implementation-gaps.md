@@ -11,6 +11,29 @@ this is the triage view. Severity reflects impact on shipping a playable MVP.
 
 ---
 
+## ✅ Resolved in the 2026-06-06 code pass (`act/*.jsx`)
+
+> All fixes landed in the React prototype (the only place game logic exists — `Assets/Scripts/` is empty).
+> Balance values marked ⚠️ are **provisional starting points** pending a proper `/balance-check` simulation.
+
+| # | Was | Now |
+|---|-----|-----|
+| **1** | No save/load — reset every reload | **Versioned `localStorage` save** (`awz_save`, v1); writes on every state change, loads on mount; `adminReset` clears it |
+| **2** | Offline earnings hardcoded/unreachable | **Real accrual on resume**: `floor(min(elapsed,8h) × savedRate × 0.60)`, modal shows real numbers (gold only) |
+| **4** | No offline decay (idle inverted) | **Gentle offline decay** on resume toward a 35–40 floor (a soft "tend me" nudge, not punishing) |
+| **5** | Attractions buildable at any level | **Level gate enforced** in `buildAttraction()` + Build button shows "🔒 Reach Lv X" |
+| **6** | Trust gates were data-only | **Enforced**: Petting needs trust ≥ 40, Performance needs ≥ 80 (`participants()`) |
+| **7** | Quest credit on activity START (farmable) | **Credited on COMPLETION** in `finishActivity()` |
+| **8** | Enclosure/enrichment uncapped (∞ appeal) | **Capped at Lv5** (guards + disabled buttons); appeal now bounded |
+| **9** | Happiness standalone → "spam Play" dominant | **Welfare composite**: `happyMult` now averages hunger+thirst+clean+happy, so all care matters |
+| **D-B1** | Decay −6/12s (drained in 2–7 min) | **−6/−8/−6/−4 per HOUR** (30-min tick) — matches the documented "−6/hr" intent ⚠️ |
+| **D-W5** | Cost mults 2× high (22/160/40) | **Halved → 11/80/20** (display + charge synced) ⚠️ |
+| **3 / I4** | Rides(9k)<Shows(16k); offline "+820 XP" contradiction; dead ride species | **Costs de-inverted** (shows 8k < rides 16k); **offline is gold-only** (no XP); **Camel/Ostrich/Pony removed** from rides filter |
+
+**Still open (not done this pass):** daily missions / gem faucet (Fe6), reputation wiring (Fe8), activity-cooldown persistence (reload still resets cooldowns), the XP-curve pacing reshape & the 90-day-journey reality gap (needs `/balance-check` + sim), collection-completion reward, endgame/prestige design, and the Unity C# port. See the severity tables below.
+
+---
+
 ## 🔴 CRITICAL — blocks any retention / alpha test
 
 | # | Gap | Evidence | GDD | Fix sketch |

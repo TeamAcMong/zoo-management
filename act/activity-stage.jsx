@@ -5,11 +5,11 @@
 // ============================================================
 
 const ACTV_THEME = {
-  photo:   { cat:'Photo session',  crowd:['📸','🧑','📷','👨‍👩‍👧','📸'], cap:s=>`Say cheese! 📸` },
-  feeding: { cat:'Feeding time',   crowd:['🥕','🧒','🍎','👫','🥬'],     cap:s=>`Yum! 😋` },
-  riding:  { cat:'Animal ride',    crowd:['🎟️','🧑','👏','🧒','🎟️'],     cap:s=>`Giddy up! 🐎` },
-  edu:     { cat:'Educational show',crowd:['👏','🧑‍🤝‍🧑','👏','🧒','👏'], cap:s=>`Amazing! ✨` },
-  premium: { cat:'Premium encounter',crowd:['🤩','👏','🤩','👏','🤩'],   cap:s=>`Unforgettable! ⭐` },
+  photo:   { cat:'photo',   crowd:['📸','🧑','📷','👨‍👩‍👧','📸'], cap:s=>t('actv.cap.photo')   + ' 📸' },
+  feeding: { cat:'feeding', crowd:['🥕','🧒','🍎','👫','🥬'],     cap:s=>t('actv.cap.feeding') + ' 😋' },
+  riding:  { cat:'riding',  crowd:['🎟️','🧑','👏','🧒','🎟️'],     cap:s=>t('actv.cap.riding')  + ' 🐎' },
+  edu:     { cat:'edu',     crowd:['👏','🧑‍🤝‍🧑','👏','🧒','👏'], cap:s=>t('actv.cap.edu')     + ' ✨' },
+  premium: { cat:'premium', crowd:['🤩','👏','🤩','👏','🤩'],     cap:s=>t('actv.cap.premium') + ' ⭐' },
 };
 
 function ActivityStage({ act, animal, onDone }) {
@@ -39,17 +39,17 @@ function ActivityStage({ act, animal, onDone }) {
   }, []);
 
   const rewardLines = [
-    act.gold && ['🪙 Gold', '+' + act.gold.toLocaleString()],
-    act.rep  && ['🏅 Reputation', '+' + act.rep],
-    act.xp   && ['⭐ Zoo XP', '+' + act.xp],
-    act.happy&& ['😊 Satisfaction', '+' + act.happy],
+    act.gold && ['🪙 ' + t('actv.reward.gold'), '+' + act.gold.toLocaleString()],
+    act.rep  && ['🏅 ' + t('actv.reward.rep'),  '+' + act.rep],
+    act.xp   && ['⭐ ' + t('actv.reward.xp'),   '+' + act.xp],
+    act.happy&& ['😊 ' + t('actv.reward.happy'), '+' + act.happy],
   ].filter(Boolean);
 
   return (
     <div className={'actv-stage cat-' + act.cat}>
       <div className="actv-top">
-        <span className="actv-cat">{theme.cat}</span>
-        {phase!=='done' && canSkip && <button className="actv-skip" onClick={onDone}>Skip ▶</button>}
+        <span className="actv-cat">{t('actv.cat.' + act.cat)}</span>
+        {phase!=='done' && canSkip && <button className="actv-skip" onClick={onDone}>{t('actv.skip')} ▶</button>}
       </div>
 
       <div className="actv-arena">
@@ -77,12 +77,12 @@ function ActivityStage({ act, animal, onDone }) {
         {phase==='done' && (
           <div className="actv-done">
             <div style={{ fontSize:38 }}>{animal ? animal.emoji : '🎉'}</div>
-            <div style={{ fontSize:13, fontWeight:800, letterSpacing:'.04em', textTransform:'uppercase' }}>{act.name} complete!</div>
+            <div style={{ fontSize:13, fontWeight:800, letterSpacing:'.04em', textTransform:'uppercase' }}>{t('actv.complete', { name: entName(act.key) })}</div>
             <div className="ad-card">
               {rewardLines.map(([l,v])=>(
                 <div key={l} className="reward-row"><span style={{ fontWeight:700, fontSize:13 }}>{l}</span><b>{v}</b></div>
               ))}
-              <button className="gbtn grass" style={{ marginTop:12 }} onClick={onDone}>Collect</button>
+              <button className="gbtn grass" style={{ marginTop:12 }} onClick={onDone}>{t('actv.collect')}</button>
             </div>
           </div>
         )}

@@ -70,18 +70,18 @@ function LiveZoo({ owned, meters, counts, rate, gold, setGold, xp, setXp, onOpen
     <div className="live-root">
       <div className="live-hud">
         <span className={'live-rate'+(rateFocus?' tut-hi':'')}><span className="pulse"></span>+{RATE.toLocaleString()} 🪙/s</span>
-        <span className="live-stat" title="Zoo appeal → draws visitors">✨ {appeal.toLocaleString()}</span>
-        <span className={'live-stat'+(capped?' cap':'')} title={capped?'Visitors capped — add animals/attractions for more capacity':'Visitors / capacity'}>👥 {visitors.toLocaleString()}/{capacity.toLocaleString()}</span>
+        <span className="live-stat" title={t('live.appeal_tip')}>✨ {appeal.toLocaleString()}</span>
+        <span className={'live-stat'+(capped?' cap':'')} title={capped?t('live.visitors_capped'):t('live.visitors_tip')}>👥 {visitors.toLocaleString()}/{capacity.toLocaleString()}</span>
         <span className="live-clock">⏱ {mm}:{ss}</span>
         <span className="spd">{[1,2].map(s=><button key={s} className={speed===s?'on':''} onClick={()=>setSpeed(s)}>{s}×</button>)}</span>
         <span className="zm-zoomctl">
-          <button onClick={()=>setZoom(z=>Math.max(0.7, +(z-0.15).toFixed(2)))} title="Zoom out">🔍−</button>
-          <button onClick={()=>setZoom(z=>Math.min(1.3, +(z+0.15).toFixed(2)))} title="Zoom in">🔍+</button>
+          <button onClick={()=>setZoom(z=>Math.max(0.7, +(z-0.15).toFixed(2)))} title={t('live.zoom_out')}>🔍−</button>
+          <button onClick={()=>setZoom(z=>Math.min(1.3, +(z+0.15).toFixed(2)))} title={t('live.zoom_in')}>🔍+</button>
         </span>
       </div>
       <div className="zmap" ref={mapRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp} style={{ pointerEvents: locked ? 'none' : undefined }}>
       <div className="zmap-canvas" style={{ transform:'scale('+zoom+')', transformOrigin:'top center', width:'132%' }}>
-        <div className="zm-title">🗺️ Animal World Zoo · Park map</div>
+        <div className="zm-title">🗺️ Animal World Zoo · {t('live.map_title')}</div>
 
         {/* water + paths */}
         <div className="zm-shape" style={{ left:'2%', top:'3%', width:'52%', height:'118px', background:'#8CCBEA', borderRadius:'48% 52% 56% 44% / 56% 50% 50% 44%', boxShadow:'inset 0 0 0 3px rgba(255,255,255,.4)' }}></div>
@@ -99,12 +99,12 @@ function LiveZoo({ owned, meters, counts, rate, gold, setGold, xp, setXp, onOpen
           const a = A[k]; const m = meters && meters[k];
           const needs = m ? [m.hunger<35&&'🍖', m.thirst<35&&'💧', m.clean<40&&'🫧', m.happy<45&&'😕', (m.hunger<22&&m.thirst<22)&&'🤒'].filter(Boolean) : [];
           return (
-            <div key={k} className={'zm-plot'+(needs.length?' need':'')} style={{ left:pos[0]+'%', top:pos[1]+'%' }} onClick={()=>onOpen(k)} title={a.species}>
+            <div key={k} className={'zm-plot'+(needs.length?' need':'')} style={{ left:pos[0]+'%', top:pos[1]+'%' }} onClick={()=>onOpen(k)} title={speciesName(k)}>
               <div className="zm-pad" style={{ background:a.bg }}>
                 {needs.length>0 && <span className="zm-need">{needs.map((n,idx)=><span key={idx}>{n}</span>)}</span>}
                 <span className="bob" style={{ display:'inline-block' }}>{a.emoji}</span>
               </div>
-              <div className="zm-sign">{a.species} ×{cnt(k)}</div>
+              <div className="zm-sign">{t('live.plot_label', { species: speciesName(k), n: cnt(k) })}</div>
             </div>
           );
         })}
@@ -112,9 +112,9 @@ function LiveZoo({ owned, meters, counts, rate, gold, setGold, xp, setXp, onOpen
         {Object.keys(POS).filter(k=>!owned.includes(k) && A[k]).map(k=>{
           const pos = POS[k];
           return (
-            <div key={'lk-'+k} className="zm-plot zm-locked" style={{ left:pos[0]+'%', top:pos[1]+'%' }} onClick={(e)=>{ e.stopPropagation(); onLocked(); }} title="Locked — tap to view the collection">
+            <div key={'lk-'+k} className="zm-plot zm-locked" style={{ left:pos[0]+'%', top:pos[1]+'%' }} onClick={(e)=>{ e.stopPropagation(); onLocked(); }} title={t('live.locked_tip')}>
               <div className="zm-pad" style={{ background:'#CFC4B2' }}><span style={{ fontSize:18, filter:'grayscale(1)', opacity:.5 }}>{A[k].emoji}</span><span className="zm-lock">🔒</span></div>
-              <div className="zm-sign" style={{ opacity:.7 }}>Locked</div>
+              <div className="zm-sign" style={{ opacity:.7 }}>{t('live.locked_label')}</div>
             </div>
           );
         })}
@@ -128,18 +128,18 @@ function LiveZoo({ owned, meters, counts, rate, gold, setGold, xp, setXp, onOpen
         {/* decorative entrance gate (no button — income is automatic) */}
         <div className="zm-gate2" style={{ left:'50%', top:'90%', cursor:'default', animation:'none' }}>
           <div className="arch2"></div>
-          <div className="sign2">🏛️ Welcome</div>
+          <div className="sign2">🏛️ {t('live.gate_welcome')}</div>
         </div>
 
-        {vip && <button className={'zm-vip'+(vipHint?' focus':'')} style={{ left:vip.x+'%', top:vip.y+'%' }} onClick={(e)=>{ e.stopPropagation(); if(window.zbeep) window.zbeep(560,0.14,'triangle',0.16); onVip(); vipCdRef.current=15; setVipHint(false); setVip(null); }} onPointerDown={(e)=>e.stopPropagation()}>🤵<span className="zv-tag">VIP! tap to serve</span></button>}
+        {vip && <button className={'zm-vip'+(vipHint?' focus':'')} style={{ left:vip.x+'%', top:vip.y+'%' }} onClick={(e)=>{ e.stopPropagation(); if(window.zbeep) window.zbeep(560,0.14,'triangle',0.16); onVip(); vipCdRef.current=15; setVipHint(false); setVip(null); }} onPointerDown={(e)=>e.stopPropagation()}>🤵<span className="zv-tag">{t('live.vip_tag')}</span></button>}
 
         {parts.map(p=>(
           <button key={p.id} className={'ztap'+(p.big?' big':'')} style={{ left:p.x+'%', top:p.y+'%' }} onClick={(e)=>collect(p,e)} onPointerDown={(e)=>e.stopPropagation()}>{p.big?'💰':'🪙'}<span className="ztv">+{p.val.toLocaleString()}</span></button>
         ))}
       </div>
       </div>
-      <div className="zm-hint">✋ Drag to pan · 🪙 tap coins for bonus gold</div>
-      {vipHint && <div className="vip-firsthint">🤵 A VIP guest arrived! Tap them on the map to serve — big reward 🎁</div>}
+      <div className="zm-hint">{t('live.drag_hint')}</div>
+      {vipHint && <div className="vip-firsthint">{t('live.vip_banner')}</div>}
     </div>
   );
 }

@@ -5,11 +5,11 @@
 // ============================================================
 
 const PERF_TRICKS = [
-  { name:'Ball balancing', icon:'🔵', cls:'t-wobble', prop:'🔵' },
-  { name:'Dancing',        icon:'💃', cls:'t-spin',   prop:null },
-  { name:'Jumping',        icon:'⬆️', cls:'t-jump',   prop:null },
-  { name:'Fetching',       icon:'🥏', cls:'t-flip',   prop:'🥏' },
-  { name:'Team routine',   icon:'🤝', cls:'t-jump',   prop:null },
+  { name:'Ball balancing', icon:'🔵', cls:'t-wobble', prop:'🔵', tKey:'show.trick.ball_balancing' },
+  { name:'Dancing',        icon:'💃', cls:'t-spin',   prop:null,  tKey:'show.trick.dancing' },
+  { name:'Jumping',        icon:'⬆️', cls:'t-jump',   prop:null,  tKey:'show.trick.jumping' },
+  { name:'Fetching',       icon:'🥏', cls:'t-flip',   prop:'🥏',  tKey:'show.trick.fetching' },
+  { name:'Team routine',   icon:'🤝', cls:'t-jump',   prop:null,  tKey:'show.trick.team_routine' },
 ];
 
 function ShowStage({ lineup, meters, onDone }) {
@@ -57,15 +57,15 @@ function ShowStage({ lineup, meters, onDone }) {
     <div className="show-stage">
       <div className="ss-canopy"></div>
       <div className="ss-top">
-        <span className="ss-title">🎤 Showtime</span>
+        <span className="ss-title">🎤 {t('show.title')}</span>
         <span className="ss-dots">{lineup.map((_,i)=><i key={i} className={i<=step?'on':''}></i>)}</span>
-        <button className="ss-skip" onClick={()=>onDone(result)}>Skip ▶</button>
+        <button className="ss-skip" onClick={()=>onDone(result)}>{t('show.skip')} ▶</button>
       </div>
 
       <div className="ss-arena">
         <div className="ss-spot"></div>
         <div className="ss-ring"></div>
-        <div className={'ss-combo'+(kick?' kick':'')} key={kick}>COMBO ×{combo}</div>
+        <div className={'ss-combo'+(kick?' kick':'')} key={kick}>{t('show.combo', { n: combo })}</div>
 
         <div className="ss-bench left">{lineup.map((a,i)=> i>step ? <span key={a.key} className="w dim">{a.emoji}</span> : null)}</div>
         <div className="ss-bench right">{lineup.map((a,i)=> i<step ? <span key={a.key} className="w done">{a.emoji}</span> : null)}</div>
@@ -73,7 +73,7 @@ function ShowStage({ lineup, meters, onDone }) {
         {phase==='perform' && (
           <div className="ss-callout" key={'c'+step}>
             <div className="nm">{cur.name}</div>
-            <div className="tk">{trick.icon} {trick.name}!</div>
+            <div className="tk">{trick.icon} {t(trick.tKey)}</div>
           </div>
         )}
 
@@ -87,7 +87,7 @@ function ShowStage({ lineup, meters, onDone }) {
         {sparks.map(s => <span key={s.id} className="ss-spark" style={{ left:s.left+'%', bottom:160 }}>{s.e}</span>)}
 
         <div className="ss-hud">
-          <div className="ss-applause"><span className="lbl">👏 Crowd</span><div className="track"><i style={{ width:applause+'%' }}></i></div></div>
+          <div className="ss-applause"><span className="lbl">👏 {t('show.crowd_label')}</span><div className="track"><i style={{ width:applause+'%' }}></i></div></div>
         </div>
 
         <div className="ss-aud">
@@ -96,10 +96,10 @@ function ShowStage({ lineup, meters, onDone }) {
 
         {phase==='finale' && (
           <div className="ss-finale">
-            <div className="ss-title">Grand finale!</div>
+            <div className="ss-title">{t('show.finale_title')}</div>
             <div className="fstars">{'⭐'.repeat(result.stars)}{'☆'.repeat(3-result.stars)}</div>
             <div style={{ display:'flex', gap:6 }}>{lineup.map(a=><span key={a.key} style={{ fontSize:36 }} className="perform">{a.emoji}</span>)}</div>
-            <div style={{ fontSize:12, fontWeight:700, color:'rgba(255,255,255,.85)', marginTop:4 }}>Avg trust {result.avg}% · combo ×{result.combo.toFixed(1)}</div>
+            <div style={{ fontSize:12, fontWeight:700, color:'rgba(255,255,255,.85)', marginTop:4 }}>{t('show.finale_stats', { avg: result.avg, combo: result.combo.toFixed(1) })}</div>
           </div>
         )}
       </div>

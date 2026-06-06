@@ -37,7 +37,7 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: "2026-06-06"
+last_updated: "2026-06-06"   # incl. implementation pass: save/load, offline, decay, caps, gates, cost mults
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -142,16 +142,16 @@ formulas:
       - design/gdd/animal-care.md            # C1 computes it from meters[k].happy
       - design/gdd/enrichment.md             # Fe3 — enrichment's +18 happy feeds happyMult
     variables:
-      - avgHappiness   # arithmetic mean of meters[k].happy across owned animals, 0–100 (defaults to 60 when none owned)
+      - welfare        # per-animal mean of (hunger,thirst,clean,happy), 0–100
+      - avgWelfare     # mean of welfare across owned animals (defaults to 60 when none owned)
       - happyMult      # output multiplier
     output_range: [0.5, 1.4]
-    expression: "happyMult = clamp(0.4 + avgHappiness/100, 0.5, 1.4)"
-    notes: "VERIFIED consistent between code, animal-care.md (C1) and zoo-economy.md (C2).
-      ⚠️ Semantic gap (C1 OQ-2): meters[k].happy is a STANDALONE meter raised only by
-      Play/Heal/Enrichment — hunger/thirst/cleanliness do NOT feed it arithmetically,
-      despite data.jsx STATS copy implying a welfare composite. Resolve before balance lock."
+    expression: "welfare(k) = (hunger+thirst+clean+happy)/4 ; happyMult = clamp(0.4 + avgWelfare/100, 0.5, 1.4)"
+    notes: "REVISED 2026-06-06 — was clamp(0.4 + avgHappiness/100,…) using meters[k].happy ALONE.
+      Now a WELFARE COMPOSITE of all four needs, so feeding/watering/cleaning each move the economy
+      (resolves C1 OQ-2 / removes the dominant 'spam free Play' strategy). Source: prototype.jsx welfareOf."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: unlock_gold_cost
     status: active
@@ -181,14 +181,13 @@ formulas:
     variables:
       - appeal      # ANIMALS[k].appeal, 3–3000
       - count       # current owned count before purchase
-      - mult        # BUY_COST_MULT = 22
-    output_range: [50, 66050]   # Dolphin 2nd copy ≈ 66,050
-    expression: "buyCost = round(appeal × 22 × count) + 50"
-    notes: "⚠️ BALANCE GAP (F2 §D / Fe1 OQ-3): mult 22 was calibrated for old appeal
-      max ~1500; now max=3000 → elite species ~2× too expensive. Needs /balance-check.
-      Source: prototype.jsx buyMoreAnimal."
+      - mult        # BUY_COST_MULT = 11
+    output_range: [50, 33050]   # Dolphin 2nd copy ≈ 33,050
+    expression: "buyCost = round(appeal × 11 × count) + 50"
+    notes: "REVISED 2026-06-06 — mult halved 22→11 (appeal max is now 3000). ⚠️ Provisional —
+      confirm with a full /balance-check ROI pass. Source: prototype.jsx buyMoreAnimal + proto-screens.jsx."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: daily_gem_faucet
     status: active
@@ -221,11 +220,11 @@ formulas:
       - factor      # offline_rate_factor = 0.60
     output_range: [0, 86400_times_rate]
     expression: "offlineGold = floor( min(elapsed, cap) × goldPerSec × 0.60 )"
-    notes: "⚠️ ENTIRELY FAKED in code (Fe7): the offline modal shows hardcoded strings
-      ('8h 04m', '+5,240', '+820 XP') and Collect grants a hardcoded +6340. No closedAt
-      timestamp is saved (F3 unimplemented). This formula is the DESIGNED behavior, not live."
+    notes: "IMPLEMENTED 2026-06-06 — real on-resume accrual using saved rate + closedAt (elapsed =
+      now − closedAt, clamped to 8h). Modal now shows real numbers. GOLD ONLY (no offline XP — resolves
+      the zoo-level↔idle-offline '+820 XP' contradiction). VIP 24h cap not yet wired (no VIP flag)."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: enclosure_upgrade_cost
     status: active
@@ -238,15 +237,14 @@ formulas:
     variables:
       - appeal      # ANIMALS[k].appeal
       - encLv       # current enclosure level 1–5
-      - mult        # upgrade_cost_mult = 160
+      - mult        # upgrade_cost_mult = 80
       - floor       # upgrade_cost_floor = 300
-    output_range: [300, 2400300]
-    expression: "upgradeCost = round(appeal × 160 × encLv) + 300"
-    notes: "⚠️ BALANCE GAP (F2 §D / Fe2 OQ-2): mult 160 calibrated for old appeal max ~1500;
-      now max=3000 → endgame ~2× too high. Recommend ~80 pending C2 balance pass.
-      Source: proto-screens.jsx EnclosureScreen."
+    output_range: [300, 1200300]
+    expression: "upgradeCost = round(appeal × 80 × encLv) + 300"
+    notes: "REVISED 2026-06-06 — mult halved 160→80. Enclosure now hard-capped at Lv5 (enforced).
+      ⚠️ Provisional — confirm in /balance-check. Source: prototype.jsx upgradeEnc + proto-screens.jsx."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: enclosure_appeal_mult
     status: active
@@ -313,14 +311,14 @@ formulas:
     variables:
       - appeal      # ANIMALS[k].appeal
       - enrLv       # current enrichment level (0,1,2,…)
-      - mult        # ENRICH_COST_MULT = 40
+      - mult        # ENRICH_COST_MULT = 20
       - floor       # ENRICH_COST_FLOOR = 200
-    output_range: [320, 120200]   # Rabbit first = 320; Dolphin Lv0→1 = 120,200
-    expression: "enrichCost = round(appeal × 40 × (enrLv + 1)) + 200"
-    notes: "⚠️ BALANCE GAP (F2 §D / Fe3 OQ-2): mult 40 calibrated for old appeal max ~1500;
-      now max=3000 → elite ~2× too high. Recommend ~20. Source: proto-screens.jsx + prototype.jsx."
+    output_range: [260, 60200]   # Rabbit first ≈ 260; Dolphin Lv0→1 = 60,200
+    expression: "enrichCost = round(appeal × 20 × (enrLv + 1)) + 200"
+    notes: "REVISED 2026-06-06 — mult halved 40→20. Enrichment now hard-capped at Lv5 (enforced),
+      so appeal is bounded. ⚠️ Provisional — confirm in /balance-check. Source: prototype.jsx + proto-screens.jsx."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: enrichment_appeal_factor
     status: active
@@ -455,14 +453,14 @@ constants:
     referenced_by:
       - design/gdd/animal-care.md       # C1 owns the decay loop
       # add idle-offline.md (Fe7) when authored — offline degradation must use these rates
-    value: "hunger:6, thirst:8, clean:5, happy:3"
+    value: "hunger:3, thirst:4, clean:3, happy:2"
     unit: stat_points_per_tick
-    notes: "Per-stat decay applied each tick. ⚠️ HIGH RISK (C1 OQ-3): at the current
-      decay_tick_interval a full stat drains in ~2–7 min of ACTIVE session — roughly
-      100–1000× too fast for a daily-check-in idle game. Needs a major tuning pass.
-      Source: prototype.jsx decay useEffect."
+    notes: "REVISED 2026-06-06 — was 6/8/5/3 per 12s (drained in 2–7 min, idle-inverting).
+      Now 3/4/3/2 per 30-min tick = −6/−8/−6/−4 per HOUR, matching the data.jsx STATS intent
+      ('−6/hr' hunger, '−8/hr' thirst). A full stat now drains 100→warning over ~8–12h
+      (daily-ritual cadence). ⚠️ Provisional — confirm in the balance pass. Source: prototype.jsx."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: decay_tick_interval
     status: active
@@ -470,12 +468,12 @@ constants:
     referenced_by:
       - design/gdd/animal-care.md
       # add idle-offline.md (Fe7) when authored
-    value: 12000
+    value: 1800000
     unit: ms
-    notes: "Interval between care-stat decay ticks (active session only — no offline
-      decay is implemented). See care_decay_per_tick for the per-tick amounts."
+    notes: "REVISED 2026-06-06 — was 12000 (12s). Now 30 min. Offline decay IS now applied
+      on resume (gentle, floored at 35–40). See care_decay_per_tick."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: care_action_cost_tier_mult
     status: active
@@ -528,14 +526,13 @@ constants:
       - design/gdd/taming.md
       - design/gdd/animal-care.md        # 'Thriving' status at trust >= 68
       # add attractions.md (Fe4 petting gate) + performance.md (Fe5) when authored
-    value: "thriving:68, petting_gate_PROPOSED:40, performer_gate_PROPOSED:80, show_crowd_tier1:50, show_crowd_tier2:70"
+    value: "thriving:68, petting_gate:40, performer_gate:80, show_crowd_tier1:50, show_crowd_tier2:70"
     unit: trust_points
-    notes: "thriving (68) and show crowd-mult tiers (50/70) are IMPLEMENTED. ⚠️ The
-      Petting Area (40) and Performer (80) trust gates are PROPOSED only — code currently
-      gates Petting by species taming-string and Performance by the `perform` flag, NOT
-      by trust value (C4 OQ-3). Confirm values before Fe4/Fe5 implementation."
+    notes: "ENFORCED 2026-06-06 — Petting (trust≥40, TRUST_PETTING) and Performance (trust≥80,
+      TRUST_PERFORM) gates now applied in AttractionsScreen.participants() (were data-only, C4 OQ-3).
+      thriving (68) and show crowd tiers (50/70) implemented. Constants in data.jsx."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: xp_per_adopt
     status: active
@@ -558,11 +555,10 @@ constants:
       # add M4 Friends/Gifting, M2 Monetisation, cloud-save when authored
     value: "awz_save"
     unit: localstorage_key
-    notes: "DESIGNED (not yet implemented — F3 has zero localStorage calls in code).
-      The localStorage key for the single save slot. Any future export/import or
-      cloud-save must read/write this key."
+    notes: "IMPLEMENTED 2026-06-06 — prototype.jsx now persists a versioned JSON blob under this
+      key on every meaningful state change, and loads it on mount (loadSave). adminReset clears it."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: save_format_version
     status: active
@@ -697,11 +693,11 @@ constants:
       - design/gdd/habitat-system.md
       - design/gdd/currency-system.md
       - design/gdd/animal-database.md
-    value: 160
+    value: 80
     unit: gold_per_appeal_per_level
-    notes: "Multiplier in enclosure_upgrade_cost. ⚠️ Balance gap — recommend ~80. Safe range 80–300."
+    notes: "REVISED 2026-06-06 — was 160 (halved for appeal max 3000). Safe range 80–300."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: upgrade_cost_floor
     status: active
@@ -737,10 +733,10 @@ constants:
       - design/gdd/zoo-economy.md
     value: 5
     unit: enclosure_level
-    notes: "Max enclosure upgrade level. ⚠️ Fe2 OQ-1 BUG: upgradeEnc() has NO encLv>=5 guard —
-      players can upgrade past Lv5 silently. One-line fix needed."
+    notes: "ENFORCED 2026-06-06 — upgradeEnc() now guards encLv>=5 (was uncapped). Constant
+      MAX_ENCLOSURE_LEVEL in data.jsx; button disables at max in EnclosureScreen."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: enc_capacity_base
     status: active
@@ -809,13 +805,13 @@ constants:
     referenced_by:
       - design/gdd/attractions.md
       - design/gdd/currency-system.md     # Gold sink
-    value: "petting:500, feeding:2500, rides:9000, shows:16000, perform:45000"
+    value: "petting:500, feeding:2500, shows:8000, rides:16000, perform:45000"
     unit: gold
-    notes: "Per-attraction build cost. ⚠️ Fe4 gaps: (1) Rides(Lv30,9000) cheaper than
-      Shows(Lv26,16000) — non-monotonic; (2) data.jsx SINKS table says 40k–900k, ~20× too high
-      (stale stub); (3) buildAttraction() does NOT enforce unlock level (Fe4 OQ-1)."
+    notes: "REVISED 2026-06-06 — cost is now monotonic with unlock level (shows 8k @Lv26 < rides 16k @Lv30;
+      was inverted). Level gate now ENFORCED in buildAttraction() (Fe4 OQ-1 fixed). ⚠️ data.jsx SINKS
+      table (40k–900k) is still a stale stub — not gameplay; fix in a doc pass."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: enrich_cost_mult
     status: active
@@ -823,12 +819,11 @@ constants:
     referenced_by:
       - design/gdd/enrichment.md
       - design/gdd/currency-system.md
-    value: 40
+    value: 20
     unit: gold_per_appeal_per_level
-    notes: "Multiplier in enrichment_cost. ⚠️ Balance gap — recommend ~20. Same calibration
-      issue as buy_more_cost (22) and enclosure_upgrade_cost (160)."
+    notes: "REVISED 2026-06-06 — was 40 (halved for appeal max 3000)."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
   - name: enrich_cost_floor
     status: active
@@ -877,10 +872,10 @@ constants:
       - design/gdd/enrichment.md
     value: 5
     unit: enrichment_level
-    notes: "⚠️ DESIGN RECOMMENDATION — NOT IMPLEMENTED. addEnrichment has no cap guard;
-      appeal can grow unbounded (Fe3 OQ-1). Recommend cap at 5 (symmetric with max_enclosure_level)."
+    notes: "ENFORCED 2026-06-06 — addEnrichment now guards enrLv>=5 (was unbounded, Fe3 OQ-1).
+      Appeal is now bounded. Constant MAX_ENRICH_LEVEL in data.jsx; button disables at max."
     added: 2026-06-06
-    revised: ""
+    revised: "2026-06-06"
 
 # Example:
 #
