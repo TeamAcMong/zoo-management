@@ -62,6 +62,12 @@ See `docs/COLLABORATIVE-DESIGN-PRINCIPLE.md` for full protocol and examples.
 
 > **First session?** If the project has no engine configured and no game concept,
 > run `/start` to begin the guided onboarding flow.
+>
+> **Continuing an in-progress project? READ `docs/AI-HANDOFF.md` FIRST.** It is the
+> single entry point that tells you the current state, the source-of-truth map, what to
+> check, and how to pick the next task (the prioritized worklist is
+> `docs/project-workflow-backlog-2026-06-07.csv`). Do this before any work, even if the
+> user did not explicitly ask.
 
 ## Coding Standards
 
