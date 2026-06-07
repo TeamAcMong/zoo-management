@@ -37,7 +37,54 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: "2026-06-06"   # incl. implementation pass: save/load, offline, decay, caps, gates, cost mults
+last_updated: "2026-06-07"   # 2026-06-06 impl pass (save/load, offline, decay, caps, cost mults) + 2026-06-07 Unity C# audit
+
+# ─── 2026-06-07 — UNITY C# AUDIT (authoritative source moved off prototype.jsx) ──
+# The shipping codebase is now Unity C# under Assets/Scripts/**. The "Source:
+# prototype.jsx" lines in notes below record the ORIGIN of each value (where it was
+# reverse-documented from); they are NOT the shipping implementation. Per CLAUDE.md
+# the JSX build is reference-only. An audit of the C# domain/data services on
+# 2026-06-07 found the implementation is PARTIAL and diverges from this registry:
+#
+#   ✅ MATCH in C# (authoritative = the service `const`; TuningConfig mirrors but is
+#      NOT yet wired into the services):
+#        buy_more_cost (CollectionService, mult 50) · enclosure_upgrade_cost
+#        (HabitatService 80/300) · enclosure_appeal_mult (EconomyService 0.25) ·
+#        enrichment_cost (EnrichmentService 20/200) · enrichment_appeal_factor (0.10)
+#        + max_enrich_level 5 · attraction_revenue_multiplier (EconomyService,
+#        0.05/0.12 hardcoded) · attraction mults 0.12/0.15 · build cost VALUES
+#        (500/2500/8000/16000/45000) · max_enclosure_level 5 · max_level 92 ·
+#        xp_per_care_action 3 · xp_per_adopt 40 (declared) · care decay 3/4/3/2 @30min ·
+#        gems_start 10 · offline_rate_factor 0.60 · offline_cap_free_sec 28800.
+#
+#   ⚠️ MISMATCH (C# value/shape differs from registry — RECONCILE):
+#        gold_start: C# uses 200 (GameApp/DevHarness), registry says 50.
+#        level_xp_curve: C# is piecewise-LINEAR between 7 anchors (LevelService),
+#          registry says geometric. Endpoints align (Lv92), curve shape does not.
+#        enclosure_capacity: C# uses appeal-weighted seat model (EconomyService),
+#          not the integer "2 + (encLv-1)" slot formula.
+#        appeal_ladder: shipping appeal comes from AnimalDef SO assets via
+#          AnimalDatabase; the only in-code ladder is a 12-species DEV roster
+#          (DefaultAnimalData, appeal 3..230) — NOT the 29-value 3..3000 ladder.
+#        attraction_build_costs: 5th key is "arena" in C#, registry says "perform";
+#          unlock levels 7/18/26/30/45.
+#
+#   ❌ NOT FOUND in C# (designed here, no implementation — DESIGN-vs-CODE GAP):
+#        happy_mult (EconomyService.GoldPerSec applies NO welfare/happiness
+#          multiplier — the whole C2 happiness→economy link is absent) ·
+#        unlock_gold_cost (CollectionService.Unlock is FREE, level-gated only) ·
+#        trust_initial_on_adopt / trust_gain_per_action / trust_thresholds (Trust
+#          field exists in AnimalMeters but is NEVER written or read — taming absent) ·
+#        care_action_cost_tier_mult 0.4 (care actions are FREE) ·
+#        daily_gem_faucet / daily missions (no mission system; gem faucet still 0) ·
+#        biome_unlock_levels (no biome system) · offline_cap_vip_sec (no VIP tier).
+#
+#   STUB: AttractionService.Build() returns false — building is handled in UI
+#         (GameApp.cs) against a hardcoded table, not the domain service.
+#
+# Per-entry notes below have NOT all been rewritten yet — treat THIS banner as the
+# current C# truth until each note is reconciled. See production/implementation-gaps.md.
+# ─────────────────────────────────────────────────────────────────────────────
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -130,7 +177,9 @@ formulas:
       7 anchor points. Key values: Lv1=0, Lv7=5200, Lv18=42000, Lv30=210000,
       Lv45=980000, Lv60=3600000, Lv84=18000000, Lv92≈30.6M–31M (runtime-computed).
       Tune pacing by editing the LEVELS anchors ONLY — never edit LEVEL_XP directly.
-      Canonical Lv85-92 values: run console.log(LEVEL_XP) on the live page."
+      Canonical Lv85-92 values: run console.log(LEVEL_XP) on the live page.
+      ⚠️ 2026-06-07 C# AUDIT: MISMATCH (shape) — LevelService.cs:23 uses piecewise-LINEAR interpolation between
+      the 7 anchors, not geometric. Endpoints align (Lv92) but the in-between curve differs."
     added: 2026-06-06
     revised: ""
 
@@ -149,7 +198,9 @@ formulas:
     expression: "welfare(k) = (hunger+thirst+clean+happy)/4 ; happyMult = clamp(0.4 + avgWelfare/100, 0.5, 1.4)"
     notes: "REVISED 2026-06-06 — was clamp(0.4 + avgHappiness/100,…) using meters[k].happy ALONE.
       Now a WELFARE COMPOSITE of all four needs, so feeding/watering/cleaning each move the economy
-      (resolves C1 OQ-2 / removes the dominant 'spam free Play' strategy). Source: prototype.jsx welfareOf."
+      (resolves C1 OQ-2 / removes the dominant 'spam free Play' strategy). Source: prototype.jsx welfareOf.
+      ⚠️ 2026-06-07 C# AUDIT: NOT IMPLEMENTED — EconomyService.GoldPerSec (EconomyService.cs:74,88) applies
+      no welfare/happiness multiplier; the C1→C2 care-to-income link is absent in C#."
     added: 2026-06-06
     revised: "2026-06-06"
 
@@ -167,7 +218,9 @@ formulas:
     output_range: [500, 35000]   # ~500 at Lv1 → ~28k–35k at Lv92
     expression: "unlockGold = roundNice(500 × 1.06^(lv−1))"
     notes: "Gold cost to unlock a new species, gated by Zoo Level. Generated by an IIFE
-      in data.jsx (UNLOCKS). roundNice snaps to pretty numbers. Source: prototype.jsx unlockAnimal."
+      in data.jsx (UNLOCKS). roundNice snaps to pretty numbers. Source: prototype.jsx unlockAnimal.
+      ⚠️ 2026-06-07 C# AUDIT: NOT IMPLEMENTED — CollectionService.Unlock (CollectionService.cs:40) is FREE,
+      gated by Zoo Level only; no gold cost / 1.06 curve in C#."
     added: 2026-06-06
     revised: ""
 
@@ -187,7 +240,8 @@ formulas:
     notes: "REVISED 2026-06-06 (balance-check pass) — mult raised 11→50 to close the
       8.5× ROI gap vs enclosure upgrades. Target payback ~10 min; upgrade target ~15 min → 1.5× gap.
       Previous values: was 22, then provisionally halved to 11.
-      Source: prototype.jsx buyMoreAnimal + proto-screens.jsx."
+      Source: prototype.jsx buyMoreAnimal + proto-screens.jsx.
+      ✅ 2026-06-07 C# AUDIT: MATCH — CollectionService.cs:66 (mult 50, floor 50); mirrored in TuningConfig.cs:26."
     added: 2026-06-06
     revised: "2026-06-06"
 
@@ -204,7 +258,8 @@ formulas:
     expression: "dailyGems = missionCount × missionGems"
     notes: "RECONCILED: data.jsx SOURCES '5–15/day' is the PER-MISSION range, not the
       daily total. Daily ceiling = 5 missions × 15 = 75 gems/day. Matches F2's formula.
-      ⚠️ Daily missions are NOT yet implemented (Fe6 OQ-3) — free Gem faucet is currently 0."
+      ⚠️ Daily missions are NOT yet implemented (Fe6 OQ-3) — free Gem faucet is currently 0.
+      ⚠️ 2026-06-07 C# AUDIT: still NOT IMPLEMENTED — QuestService grants only stub Gold+XP, no gem/mission system."
     added: 2026-06-06
     revised: ""
 
@@ -224,7 +279,9 @@ formulas:
     expression: "offlineGold = floor( min(elapsed, cap) × goldPerSec × 0.60 )"
     notes: "IMPLEMENTED 2026-06-06 — real on-resume accrual using saved rate + closedAt (elapsed =
       now − closedAt, clamped to 8h). Modal now shows real numbers. GOLD ONLY (no offline XP — resolves
-      the zoo-level↔idle-offline '+820 XP' contradiction). VIP 24h cap not yet wired (no VIP flag)."
+      the zoo-level↔idle-offline '+820 XP' contradiction). VIP 24h cap not yet wired (no VIP flag).
+      ✅ 2026-06-07 C# AUDIT: MATCH — IdleService.cs:32 (gold-only, 0.60, 8h cap). ⚠️ But the running
+      GameApp path never calls it (dual-path; see implementation-gaps.md C-1) → no offline in practice."
     added: 2026-06-06
     revised: "2026-06-06"
 
@@ -244,7 +301,8 @@ formulas:
     output_range: [300, 1200300]
     expression: "upgradeCost = round(appeal × 80 × encLv) + 300"
     notes: "REVISED 2026-06-06 — mult halved 160→80. Enclosure now hard-capped at Lv5 (enforced).
-      ⚠️ Provisional — confirm in /balance-check. Source: prototype.jsx upgradeEnc + proto-screens.jsx."
+      ⚠️ Provisional — confirm in /balance-check. Source: prototype.jsx upgradeEnc + proto-screens.jsx.
+      ✅ 2026-06-07 C# AUDIT: MATCH — HabitatService.cs:40 (mult 80, floor 300, cap Lv5 enforced)."
     added: 2026-06-06
     revised: "2026-06-06"
 
@@ -263,7 +321,8 @@ formulas:
     expression: "encMult = 1 + 0.25 × (encLv − 1)"
     notes: "Each enclosure level adds +25% appeal; ×2.0 at Lv5 (the upgrade payoff).
       ⚠️ CONFLICT (Fe2 OQ-4): the HAB_UPGRADE display table in data.jsx shows ×3.0 at Lv5
-      — stale/wrong. The runtime multOf / this 0.25 formula is CANONICAL. Source: prototype.jsx multOf."
+      — stale/wrong. The runtime multOf / this 0.25 formula is CANONICAL. Source: prototype.jsx multOf.
+      ✅ 2026-06-07 C# AUDIT: MATCH — EconomyService.cs:50 (1 + 0.25 × (encLv − 1))."
     added: 2026-06-06
     revised: ""
 
@@ -280,7 +339,9 @@ formulas:
     expression: "capOf = 2 + (encLv − 1)"
     notes: "Max copies of a species per enclosure; gates buy-more in Fe1. ⚠️ Some ENC_COUNTS
       display values (e.g. 3) exceed capOf(Lv1)=2 — cosmetic only (ENC_COUNTS is locked-card
-      preview metadata, NOT runtime pops; resolves Fe1 OQ-5). Source: proto-screens.jsx capOf."
+      preview metadata, NOT runtime pops; resolves Fe1 OQ-5). Source: proto-screens.jsx capOf.
+      ⚠️ 2026-06-07 C# AUDIT: MISMATCH — C# has no integer 2+(encLv−1) slot model; EconomyService.cs:66
+      uses an appeal-weighted seat formula (0.6 + 0.5×(encLv−1)) instead."
     added: 2026-06-06
     revised: ""
 
@@ -299,7 +360,8 @@ formulas:
     expression: "goldPerSec = max(1, round(visitors × 0.05 × (1 + 0.12 × |built|)))"
     notes: "⚠️ Fe4 HIGH: per-attraction effect LABELS in data.jsx (+12% visitors / +15% revenue
       / +18% reputation / +20% / +25%) are cosmetic lies — ALL attractions contribute IDENTICALLY
-      via the |built| counter. C2's unified formula is canonical. Source: prototype.jsx ~line 101."
+      via the |built| counter. C2's unified formula is canonical. Source: prototype.jsx ~line 101.
+      ✅ 2026-06-07 C# AUDIT: MATCH — EconomyService.cs:88 (visitors × 0.05 × (1 + 0.12 × built), 0.05/0.12 hardcoded)."
     added: 2026-06-06
     revised: ""
 
@@ -318,7 +380,8 @@ formulas:
     output_range: [260, 60200]   # Rabbit first ≈ 260; Dolphin Lv0→1 = 60,200
     expression: "enrichCost = round(appeal × 20 × (enrLv + 1)) + 200"
     notes: "REVISED 2026-06-06 — mult halved 40→20. Enrichment now hard-capped at Lv5 (enforced),
-      so appeal is bounded. ⚠️ Provisional — confirm in /balance-check. Source: prototype.jsx + proto-screens.jsx."
+      so appeal is bounded. ⚠️ Provisional — confirm in /balance-check. Source: prototype.jsx + proto-screens.jsx.
+      ✅ 2026-06-07 C# AUDIT: MATCH — EnrichmentService.cs:40 (mult 20, floor 200, cap Lv5 at :11)."
     added: 2026-06-06
     revised: "2026-06-06"
 
@@ -336,7 +399,8 @@ formulas:
     output_range: [1.0, "unbounded — no cap in code"]
     expression: "enrichFactor = 1 + 0.10 × enrLv"
     notes: "Stacks MULTIPLICATIVELY with enclosure_appeal_mult in C2 appealOf. ⚠️ Fe3 OQ-1:
-      addEnrichment has NO level cap — appeal can grow unbounded. Recommend MAX_ENRICH_LEVEL=5."
+      addEnrichment has NO level cap — appeal can grow unbounded. Recommend MAX_ENRICH_LEVEL=5.
+      ✅ 2026-06-07 C# AUDIT: MATCH — EconomyService.cs:50 (1 + 0.10 × enrLv); cap enforced EnrichmentService.cs:11."
     added: 2026-06-06
     revised: ""
 
@@ -401,7 +465,9 @@ constants:
     unit: appeal_points_per_animal_at_baseline
     notes: "29 values — one per species in unlock-level order. Strictly non-decreasing.
       Sum of all values = 17,468. Max = 3,000 (Dolphin). Owned by F1; do NOT edit in
-      zoo-economy.md independently — change data.jsx and update the GDD ladder table."
+      zoo-economy.md independently — change data.jsx and update the GDD ladder table.
+      ⚠️ 2026-06-07 C# AUDIT: shipping appeal comes from AnimalDef SO assets (UNAUTHORED). The only in-code
+      roster is a 12-species DEV stub (DefaultAnimalData.cs:28, appeal 3–230) — NOT the 29-value 3→3000 ladder."
     added: 2026-06-06
     revised: ""
 
@@ -416,7 +482,8 @@ constants:
     unit: gold
     notes: "Starting Gold balance for a brand-new player session. Changing this
       affects how quickly new players can make their first meaningful purchase.
-      Safe range: 20–500 gold."
+      Safe range: 20–500 gold.
+      ⚠️ 2026-06-07 C# AUDIT: MISMATCH — C# seeds 200 gold (GameApp.cs:136, DevHarness.cs:41), not 50. RECONCILE."
     added: 2026-06-06
     revised: ""
 
@@ -486,7 +553,8 @@ constants:
     value: 0.4
     unit: multiplier_per_tier
     notes: "Scales the Gold cost of a care action by animal tier. Source: prototype.jsx
-      care action cost. Part of the Gold sink side of the economy."
+      care action cost. Part of the Gold sink side of the economy.
+      ⚠️ 2026-06-07 C# AUDIT: NOT IMPLEMENTED — care actions are FREE in C# (CareService.DoAction:68, no payment)."
     added: 2026-06-06
     revised: ""
 
@@ -501,7 +569,9 @@ constants:
     unit: trust_points
     notes: "Per-animal trust meter (0–100) starts at 30 on adoption (40 on admin-unlock).
       ⚠️ Trust never decays and is NOT persisted (F3 unimplemented) so it is currently
-      ephemeral. Source: prototype.jsx confirmBuy / FRESH_METERS."
+      ephemeral. Source: prototype.jsx confirmBuy / FRESH_METERS.
+      ⚠️ 2026-06-07 C# AUDIT: MISMATCH — AnimalMeters.Trust (AnimalMeters.cs:10) initializes to 0 and is
+      NEVER written or read in C#. The taming system does not exist in code."
     added: 2026-06-06
     revised: ""
 
@@ -517,7 +587,8 @@ constants:
     notes: "Trust gained per interaction. ⚠️ C4 OQ-2: gain rate is IDENTICAL across all
       species regardless of TAMING difficulty (Rabbit and Crocodile both reach 100 in
       18 plays) — the 'Master = 3+ weeks' copy is currently false. Needs design fix.
-      NOTE: views-train.jsx copy says Play +5 — code/canonical value is +4 (doc bug)."
+      NOTE: views-train.jsx copy says Play +5 — code/canonical value is +4 (doc bug).
+      ⚠️ 2026-06-07 C# AUDIT: NOT IMPLEMENTED — CareService.DoAction never modifies Trust."
     added: 2026-06-06
     revised: ""
 
@@ -532,7 +603,8 @@ constants:
     unit: trust_points
     notes: "ENFORCED 2026-06-06 — Petting (trust≥40, TRUST_PETTING) and Performance (trust≥80,
       TRUST_PERFORM) gates now applied in AttractionsScreen.participants() (were data-only, C4 OQ-3).
-      thriving (68) and show crowd tiers (50/70) implemented. Constants in data.jsx."
+      thriving (68) and show crowd tiers (50/70) implemented. Constants in data.jsx.
+      ⚠️ 2026-06-07 C# AUDIT: NOT IMPLEMENTED in C# — no threshold logic reads Trust (these gates exist in JSX only)."
     added: 2026-06-06
     revised: "2026-06-06"
 
@@ -671,7 +743,8 @@ constants:
       # add monetisation-shell.md (M2 — VIP grants the extended cap) when authored
     value: 86400
     unit: seconds
-    notes: "Offline accrual cap for VIP members (24 h). Source: data.jsx IDLE table."
+    notes: "Offline accrual cap for VIP members (24 h). Source: data.jsx IDLE table.
+      ⚠️ 2026-06-07 C# AUDIT: NOT IMPLEMENTED — no VIP tier in C#; only the 8h free cap exists (IdleService.cs:12)."
     added: 2026-06-06
     revised: ""
 
@@ -811,7 +884,9 @@ constants:
     unit: gold
     notes: "REVISED 2026-06-06 — cost is now monotonic with unlock level (shows 8k @Lv26 < rides 16k @Lv30;
       was inverted). Level gate now ENFORCED in buildAttraction() (Fe4 OQ-1 fixed). ⚠️ data.jsx SINKS
-      table (40k–900k) is still a stale stub — not gameplay; fix in a doc pass."
+      table (40k–900k) is still a stale stub — not gameplay; fix in a doc pass.
+      ⚠️ 2026-06-07 C# AUDIT: cost VALUES match (GameApp.cs:1276), but the 5th key is 'arena' not 'perform';
+      AttractionService.Build() is a stub (returns false) — building is handled in UI, not the domain service."
     added: 2026-06-06
     revised: "2026-06-06"
 

@@ -1,20 +1,41 @@
 # Implementation Gaps & Pre-Production Backlog
 
 > **Created**: 2026-06-06 (autonomous GDD-authoring session)
-> **Source**: Discovered while reverse-documenting the 10 remaining MVP system GDDs.
-> Every item below is a discrepancy between the **design intent** (now captured in
-> `design/gdd/*.md`) and the **actual code** in `act/*.jsx`. Each links to the GDD
-> Open Question that documents it in full.
+> **Updated**: 2026-06-07 — Unity C# audit (see the dedicated section below)
+> **Source**: Discovered while reverse-documenting the MVP system GDDs (2026-06-06,
+> against `act/*.jsx`), then re-audited against the **Unity C# codebase** (2026-06-07).
+>
+> ⚠️ **Codebase note (corrects an earlier claim in this file):** the **shipping codebase
+> is now Unity C# under `Assets/Scripts/**`** — it is NOT empty. The `act/*.jsx` React
+> build is the **reference prototype only** (per `CLAUDE.md`). The 2026-06-06 "Resolved"
+> table below describes fixes made in the JSX prototype; whether each one also exists in
+> the C# code is tracked in the **2026-06-07 Unity C# audit** section.
 
 This file is the single consolidated worklist. The individual GDDs hold the detail;
 this is the triage view. Severity reflects impact on shipping a playable MVP.
 
 ---
 
-## ✅ Resolved in the 2026-06-06 code pass (`act/*.jsx`)
+## ✅ Resolved in the 2026-06-06 code pass (`act/*.jsx` prototype)
 
-> All fixes landed in the React prototype (the only place game logic exists — `Assets/Scripts/` is empty).
-> Balance values marked ⚠️ are **provisional starting points** pending a proper `/balance-check` simulation.
+> These fixes landed in the **React reference prototype**. The Unity C# port has since
+> reproduced MOST of them but NOT all — the "in C#?" column records that. Balance values
+> marked ⚠️ are **provisional starting points** pending a proper `/balance-check` simulation.
+
+| # | Was | Now (JSX prototype) | In C#? |
+|---|-----|---------------------|--------|
+| **1** | No save/load | Versioned save | ✅ `SaveService.cs` (JSON @persistentDataPath) — but **only wired in `AppBootstrap`, NOT in the `GameApp` path that actually runs**, and meters/trust not serialized |
+| **2** | Offline faked | Real accrual | ✅ `IdleService.cs` (gold-only, 8h) — same caveat: not called by the running `GameApp` path |
+| **4** | No offline decay | Gentle decay | 🟡 decay rates in `CareService.cs`; offline-on-resume decay tied to the unwired path |
+| **5** | Attractions any level | Level gate | 🟡 gate logic in UI `GameApp.cs`; `AttractionService.Build()` is a stub |
+| **6** | Trust gates data-only | Enforced | ❌ **Trust is never written/read in C#** — taming absent |
+| **7** | Quest credit on start | On completion | 🟡 `QuestService` has idempotent Claim; no daily missions |
+| **8** | Enc/enrich uncapped | Capped Lv5 | ✅ `HabitatService.cs`/`EnrichmentService.cs` (cap 5 enforced) |
+| **9** | "spam Play" dominant | Welfare composite | ❌ **`happy_mult` NOT in C#** — `EconomyService.GoldPerSec` applies no welfare multiplier |
+| **D-B1** | Decay too fast | −6/−8/−6/−4 per hour | ✅ `CareService.cs` (3/4/3/2 over 1800s) |
+| **D-W5** | Cost mults 2× high | Halved | ✅ C# uses 50/80/20 (`CollectionService`/`HabitatService`/`EnrichmentService`) |
+
+<details><summary>Original 2026-06-06 JSX "Was → Now" detail (historical)</summary>
 
 | # | Was | Now |
 |---|-----|-----|
@@ -30,9 +51,62 @@ this is the triage view. Severity reflects impact on shipping a playable MVP.
 | **D-W5** | Cost mults 2× high (22/160/40) | **Halved → 11/80/20** (display + charge synced) ⚠️ |
 | **3 / I4** | Rides(9k)<Shows(16k); offline "+820 XP" contradiction; dead ride species | **Costs de-inverted** (shows 8k < rides 16k); **offline is gold-only** (no XP); **Camel/Ostrich/Pony removed** from rides filter |
 
-**Still open (not done this pass):** daily missions / gem faucet (Fe6), reputation wiring (Fe8), activity-cooldown persistence (reload still resets cooldowns), the XP-curve pacing reshape & the 90-day-journey reality gap (needs `/balance-check` + sim), collection-completion reward, endgame/prestige design, and the Unity C# port. See the severity tables below.
+</details>
+
+**Still open (not in C#):** the dual-path save wiring (game currently runs without saving),
+`happy_mult` welfare→economy link, taming/trust, daily missions / gem faucet (Fe6), reputation
+wiring (Fe8), unlock-cost gold, content authoring (29 species SO assets), `TuningConfig` wiring,
+attraction-build via service, test coverage. See the **2026-06-07 Unity C# audit** below.
 
 ---
+
+## 2026-06-07 — Unity C# audit (code-vs-design, authoritative)
+
+Audit of `Assets/Scripts/**` vs the GDDs + `entities.yaml`. This supersedes the JSX-based
+triage below for the shipping target. Evidence is `File.cs:line`.
+
+### 🔴 CRITICAL (C#)
+
+| # | Gap | Evidence | Fix sketch |
+|---|-----|----------|-----------|
+| C-1 | **Dual bootstrap path — the running game does not save.** Two paths exist: `AppBootstrap`→`GameController` (wires SaveService + IdleService, but its `P1–P7` screens are empty stubs and `GameController.Apply()` is a TODO → renders nothing) and `GameApp.cs` (auto-spawned via `GameAppBootstrap` `[RuntimeInitializeOnLoadMethod]`, renders all 5 tabs, **builds its own domain and never calls SaveService/IdleService**). The path that actually runs has **no save and no offline**. | `GameAppBootstrap.cs:16`, `GameApp.cs:132` (`BuildDomain`), `GameApp.cs:109` (own `Update`); `AppBootstrap.cs:54` (Idle wired but path inert) | Decide one path. Either: GameApp calls `SaveService`/`IdleService`, or migrate GameApp's screens into the `GameController` pipeline and finish `Apply()`. |
+| C-2 | **`happy_mult` not implemented — care does not affect income.** `EconomyService.GoldPerSec` applies no welfare/happiness multiplier; the C1→C2 link (the soul of an idle care game) is absent. | `EconomyService.cs:74,88`; `CareService.AvgHappiness:109` exists but is unused by economy | Multiply `goldPerSec` (or appeal) by the welfare composite `clamp(0.4 + avgWelfare/100, 0.5, 1.4)` per `happy_mult`. |
+
+### 🟠 HIGH (C#)
+
+| # | Gap | Evidence |
+|---|-----|----------|
+| C-3 | **Taming/trust absent.** `AnimalMeters.Trust` is declared but never written or read; no thresholds/gains. C4 is design-only in code. | `AnimalMeters.cs:10` (Trust=0, unused) |
+| C-4 | **Species unlock is free.** `CollectionService.Unlock` is level-gated only; no `unlock_gold_cost` (500×1.06^lv). | `CollectionService.cs:40` |
+| C-5 | **`gold_start` mismatch.** C# seeds 200 gold; registry/GDD say 50. | `GameApp.cs:136`, `DevHarness.cs:41` |
+| C-6 | **XP curve is piecewise-linear, not geometric.** Endpoints align (Lv92) but the curve shape differs from `level_xp_curve`. | `LevelService.cs:23` |
+| C-7 | **Care actions are free.** No `care_action_cost_tier_mult` (0.4) gold sink on care. | `CareService.DoAction:68` |
+| C-8 | **Attractions service is a stub.** `AttractionService.Build()` returns `false`; building is hardcoded in UI `GameApp.cs`, not the domain service; no `AttractionDef`. | `AttractionService.cs:38` |
+
+### 🟡 MEDIUM (C#)
+
+| # | Gap | Evidence |
+|---|-----|----------|
+| C-9 | **F3 does not persist per-animal meters/trust.** SaveBlob v1 omits `AnimalMeters`; they rebuild from defaults on load. | `SaveService.cs:143` |
+| C-10 | **No authored content.** 12-species dev roster only (appeal 3–230), not the 29-species 3–3000 ladder; **zero `.asset` files** (AnimalDatabase, TuningConfig unauthored). | `DefaultAnimalData.cs:28` |
+| C-11 | **`TuningConfig` not wired.** Services use private `const` copies; the SO mirrors values but feeds nothing → not the source of truth. | each service's `const` block |
+| C-12 | **No biome system; no VIP offline cap (86400).** Designed, absent in code. | (no references) |
+| C-13 | **Test coverage ~nil.** 5 tests cover only `EconomyService.GoldPerSec`; 9/10 services untested. | `Assets/Tests/EditMode/EconomyFormulas_GoldPerSec_Test.cs` |
+
+### Recommended sequencing (C#)
+1. **C-1 dual-path** — make the running game save/offline (highest-value; everything else is moot if progress is lost).
+2. **C-2 happy_mult** — restore care→income (core loop).
+3. **C-10/C-11 content + TuningConfig wiring** — author 29-species DB; wire the SO so balance is data-driven.
+4. **Reconcile the mismatches** (C-4/C-5/C-6/C-7) — design decisions: free-unlock vs gold; 50 vs 200; curve shape; care cost.
+5. **C-3 trust → C-8 attractions service → daily missions** — implement remaining design-only systems.
+6. **C-13** — backfill tests per service.
+
+---
+
+## JSX prototype gaps (2026-06-06 triage — reference prototype only)
+
+> The tables below were logged against `act/*.jsx`. Many are now resolved or moot in C#
+> (see the 2026-06-07 audit above). Retained for traceability to each GDD Open Question.
 
 ## 🔴 CRITICAL — blocks any retention / alpha test
 
