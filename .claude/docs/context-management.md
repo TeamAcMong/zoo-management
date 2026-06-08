@@ -58,6 +58,9 @@ This keeps the context window holding only the *current* section's discussion
 
 - **Compact proactively** at ~60-70% context usage, not reactively at the limit
 - **Use `/clear`** between unrelated tasks, or after 2+ failed correction attempts
+- **After any `team-*` / multi-subagent orchestration run completes**, the main context
+  holds every subagent's returned summary — checkpoint to `active.md`, then `/clear`
+  before starting the next feature. (There is no auto-clear; this is a manual habit.)
 - **Natural compaction points:** after writing a section to file, after committing,
   after completing a task, before starting a new topic
 - **Focused compaction:** `/compact Focus on [current task] — sections 1-3 are
