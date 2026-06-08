@@ -1,0 +1,13 @@
+TUNING KNOBS
+
+Knob,Symbol,Proposed,Safe range,Effect
+Faucet scale,S,1431,715.5 - 2862,Master pacing lever; shifts whole 6mo journey
+Curve ratio (endgame),G,1.0694,1.05 - 1.09,Late-curve steepness; keep matched to faucet
+Education XP per visitor,XP_PER_VISITOR,0.02,0.005 - 0.05,Calibrate so passive XP/day ~= 0.60*P(L) via economy sim
+Offline XP rate factor,OFFLINE_XP_FACTOR,0.6,0.3 - 0.9,Offline XP as fraction of active (mirrors gold)
+Daily mission count,DAILY_MISSION_COUNT,5,3 - 8,Each grants ~0.05*P(L) XP + 5-15 gems
+Show XP base,SHOW_XP_BASE,120,60 - 240,showXP = round(BASE*(1+SLOPE*level))
+Show XP level slope,SHOW_XP_SLOPE,0.05,0.02 - 0.10,Per-level growth of show XP
+Monthly event XP mult,EVENT_XP_MULT,4,2 - 8,"Event lump = mult * P(L), once/month"
+Offline cap free,OFFLINE_CAP_FREE_SEC,28800,14400 - 86400,Shared w/ gold; anti clock-exploit
+Quest chain total (early),QUEST_XP_TOTAL,9800,5000 - 15000,One-time early ramp Lv1->10

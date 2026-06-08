@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Animal World Zoo — Sandbox tương tác (pacing 6 tháng)</title>
+<style>
+  :root{--bg:#0f1722;--panel:#18222f;--panel2:#1e2b3a;--line:#2a3a4d;--txt:#e8eef5;--dim:#90a2b6;
+        --gold:#FFC94A;--gem:#5cc8ff;--xp:#b69bff;--good:#36C98A;--warn:#FFB22E;--bad:#EF5B6B;--accent:#6ad08a}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#0a0f16;color:var(--txt);font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px}
+  #app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
+  .hud{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#16202c,#121a24);border-bottom:1px solid var(--line);padding:8px 10px}
+  .hudrow{display:flex;gap:6px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .chip{display:flex;align-items:center;gap:4px;background:#0e1620;border:1px solid var(--line);border-radius:10px;padding:4px 8px;font-weight:700;font-size:13px}
+  .xpbar{height:9px;background:#0e1620;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:7px}
+  .xpfill{height:100%;background:linear-gradient(90deg,#8a6bff,#b69bff);width:0%}
+  .xpmeta{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:3px}
+  /* live chain strip */
+  .chain{background:#0c141d;border-bottom:1px solid var(--line);padding:7px 10px;font-size:11.5px;color:var(--dim);line-height:1.7}
+  .chain b{color:var(--txt)}
+  .chain .cap{color:var(--bad);font-weight:700}
+  /* time */
+  .timebar{display:flex;gap:5px;flex-wrap:wrap;padding:8px 10px;background:#101924;border-bottom:1px solid var(--line)}
+  .tb{flex:1;min-width:50px;background:#243246;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 4px;font-size:12px;font-weight:700;cursor:pointer}
+  .tb:active{transform:scale(.96)}
+  .togrow{display:flex;gap:10px;padding:6px 10px;align-items:center;background:#101924;border-bottom:1px solid var(--line);font-size:12px;color:var(--dim)}
+  .tog{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+  .tog input{accent-color:var(--accent)}
+  .tabs{display:flex;border-bottom:1px solid var(--line);background:#101924}
+  .tab{flex:1;text-align:center;padding:11px 0;font-weight:700;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent}
+  .tab.on{color:var(--txt);border-bottom-color:var(--accent)}
+  .body{padding:10px;flex:1;overflow-y:auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+  .card h3{margin:0 0 8px;font-size:14px}
+  .kv{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #243140;font-size:13px}
+  .kv:last-child{border-bottom:none}
+  .note{font-size:11.5px;color:var(--dim);line-height:1.6}
+  .log{font-size:12px;line-height:1.7}
+  .log div{padding:3px 0;border-bottom:1px dashed #243140}
+  .log .up{color:var(--good)} .log .same{color:var(--warn)} .log .down{color:var(--bad)}
+  .agrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .acard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;position:relative}
+  .acard.sel{outline:2px solid var(--accent)}
+  .av{font-size:32px;line-height:1;height:40px;display:flex;align-items:center;justify-content:center}
+  img.av{width:40px;height:40px;object-fit:contain}
+  .nm{font-weight:700;font-size:12.5px}.meta{font-size:11px;color:var(--dim)}
+  .mini{display:flex;gap:3px;margin-top:2px}.dot{width:13px;height:5px;border-radius:3px;background:#33455a;overflow:hidden}.dot i{display:block;height:100%}
+  .lock{opacity:.5}.ribbon{position:absolute;top:5px;right:5px;font-size:10px;background:#0d1622;border:1px solid var(--line);border-radius:6px;padding:1px 5px;color:var(--dim)}
+  .btn{border:none;border-radius:9px;padding:9px;font-weight:800;cursor:pointer;font-size:13px}
+  .btn.buy{background:var(--gold);color:#3a2a00;width:100%;margin-top:4px}
+  .btn.care{background:#26384c;color:var(--txt);border:1px solid var(--line)}
+  .btn.play{background:var(--good);color:#06210f}
+  .care-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px}
+  .statline{display:flex;align-items:center;gap:6px;margin:5px 0}
+  .statline .lbl{width:64px;font-size:12px}.bar{flex:1;height:9px;background:#0e1620;border-radius:5px;overflow:hidden}.bar i{display:block;height:100%}
+  .statline .vv{width:46px;text-align:right;font-size:11px;color:var(--dim)}
+  .calc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.8;color:var(--dim);white-space:pre-wrap;word-break:break-word}
+  .calc b{color:var(--txt)} .calc .hl{color:var(--accent);font-weight:700} .calc .cap{color:var(--bad);font-weight:700}
+  .knob{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed #243140}
+  .knob .kl{flex:1}.knob .kl small{display:block;color:#6b7f94;font-size:10.5px}
+  .knob input{width:88px;background:#0e1620;border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:6px;text-align:right;font-weight:700}
+  .mile{display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;border-bottom:1px dashed #243140}
+  .mile.done{color:var(--accent)}.mile .eta{color:var(--dim)}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0d1622;border:1px solid var(--accent);padding:8px 14px;border-radius:20px;font-weight:700;opacity:0;transition:.25s;z-index:50;pointer-events:none;max-width:90%}
+  .toast.show{opacity:1;bottom:30px}
+  .src{font-size:10.5px;color:#5e7286;padding:8px 10px;text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hud">
+    <div class="hudrow">
+      <div class="chip">🪙 <span id="h-gold">50</span></div>
+      <div class="chip">💎 <span id="h-gems">10</span></div>
+      <div class="chip" id="h-lvchip">Lv 1</div>
+      <div class="chip">📅 <span id="h-day">0</span>d</div>
+    </div>
+    <div class="xpbar"><div class="xpfill" id="h-xpfill"></div></div>
+    <div class="xpmeta"><span id="h-xpnow"></span><span id="h-proj"></span></div>
+  </div>
+
+  <div class="chain" id="chain"></div>
+
+  <div class="timebar">
+    <button class="tb" data-h="1">+1 giờ</button>
+    <button class="tb" data-d="1">+1 ngày</button>
+    <button class="tb" data-d="7">+1 tuần</button>
+    <button class="tb" data-d="30">+1 tháng</button>
+    <button class="tb" id="autobtn">▶ Auto</button>
+  </div>
+  <div class="togrow">
+    <label class="tog"><input type="checkbox" id="t-care" checked> Auto-care</label>
+    <label class="tog"><input type="checkbox" id="t-manage" checked> Auto-mở rộng</label>
+    <span style="margin-left:auto"><button class="tb" style="flex:none;padding:5px 9px" id="reset">↺ Reset</button></span>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-tab="play">🎮 Chơi</div>
+    <div class="tab" data-tab="logic">🧮 Logic</div>
+    <div class="tab" data-tab="tune">🎛️ Chỉnh số</div>
+    <div class="tab" data-tab="goal">🏁 Mốc</div>
+  </div>
+
+  <div class="body" id="body"></div>
+  <div class="src" id="srcnote"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// ============ TUNABLE KNOBS (chỉnh ở tab 🎛️) ============
+const DEFAULTS={
+  S:1431, spendPerVisitor:0.05, visitorsPerAppeal:1.0, attractRev:0.12, attractCap:0.15,
+  encAppeal:0.25, enrAppeal:0.10, seatBase:0.6, seatPer:0.5, baseGate:5,
+  happyFloor:0.5, happyCeil:1.4, decayPerDay:45,
+  eduShare:0.60, dailyShare:0.25, showShare:0.15, weeklyShare:0.90, eventMult:4, careXp:3, adoptXp:40,
+  costBuy:22, costUp:160, costEnr:40, offlineFactor:0.60
+};
+let K=Object.assign({},DEFAULTS);
+const KNOBS=[
+  {k:'S',label:'Faucet scale (cần trục pacing)',src:'GDD §7 · xp_pacing.js · ×0.5→12 tháng, ×2→3 tháng',step:50},
+  {k:'spendPerVisitor',label:'Vàng / khách / giây',src:'zoo-economy.md §7 (SPEND_PER_VISITOR)',step:0.01},
+  {k:'visitorsPerAppeal',label:'Khách / appeal',src:'zoo-economy.md §7 (VISITORS_PER_APPEAL)',step:0.1},
+  {k:'encAppeal',label:'Appeal +/cấp chuồng',src:'zoo-economy.md §4 (0.25)',step:0.05},
+  {k:'enrAppeal',label:'Appeal +/cấp enrich',src:'zoo-economy.md §4 (0.10)',step:0.05},
+  {k:'attractRev',label:'Vàng +/tiện ích',src:'zoo-economy.md §4 (0.12)',step:0.02},
+  {k:'attractCap',label:'Sức chứa +/tiện ích',src:'zoo-economy.md §4 (0.15)',step:0.02},
+  {k:'happyFloor',label:'happyMult sàn',src:'animal-care.md §4.1 (0.5)',step:0.05},
+  {k:'happyCeil',label:'happyMult trần',src:'animal-care.md §4.1 (1.4)',step:0.05},
+  {k:'decayPerDay',label:'Decay nhu cầu /ngày',src:'animal-care.md §3.2 (ADR-0005 daily)',step:5},
+  {k:'eduShare',label:'Education XP = share × P(L)',src:'xp-pacing §4.3 (0.60)',step:0.05},
+  {k:'dailyShare',label:'Daily mission = share × P(L)',src:'xp-pacing §4.4 (0.25)',step:0.05},
+  {k:'showShare',label:'Show XP = share × P(L)',src:'xp-pacing §4.5 (0.15)',step:0.05},
+  {k:'weeklyShare',label:'Weekly = share × P(L)',src:'xp-pacing §4.6 (0.90)',step:0.1},
+  {k:'eventMult',label:'Event = mult × P(L) /tháng',src:'xp-pacing §4.7 (4)',step:0.5},
+  {k:'careXp',label:'XP / hành động chăm sóc',src:'animal-care.md §4.4 (3)',step:1},
+  {k:'adoptXp',label:'XP / nhận nuôi',src:'zoo-level.md §F3 (40)',step:5},
+  {k:'costBuy',label:'Hệ số giá mua thêm',src:'currency-system.md (22)',step:2},
+  {k:'costUp',label:'Hệ số giá nâng chuồng',src:'currency-system.md (160)',step:10},
+];
+
+// ============ DATA ============
+const ANIMALS=[
+ {key:'rabbit',e:'🐰',sp:'Thỏ',tier:0,appeal:3,lv:1},{key:'chicken',e:'🐔',sp:'Gà',tier:0,appeal:8,lv:1},
+ {key:'duck',e:'🦆',sp:'Vịt',tier:0,appeal:14,lv:2},{key:'dog',e:'🐶',sp:'Chó',tier:0,appeal:30,lv:3},
+ {key:'cat',e:'🐱',sp:'Mèo',tier:1,appeal:50,lv:5},{key:'goat',e:'🐐',sp:'Dê',tier:1,appeal:70,lv:6},
+ {key:'sheep',e:'🐑',sp:'Cừu',tier:1,appeal:85,lv:8},{key:'horse',e:'🐴',sp:'Ngựa',tier:2,appeal:130,lv:11},
+ {key:'donkey',e:'🫏',sp:'Lừa',tier:2,appeal:150,lv:13},{key:'alpaca',e:'🦙',sp:'Alpaca',tier:2,appeal:170,lv:15},
+ {key:'cow',e:'🐄',sp:'Bò',tier:2,appeal:190,lv:17},{key:'fox',e:'🦊',sp:'Cáo',tier:3,appeal:230,lv:20},
+ {key:'monkey',e:'🐵',sp:'Khỉ',tier:3,appeal:260,lv:23},{key:'raccoon',e:'🦝',sp:'Gấu mèo',tier:3,appeal:290,lv:25},
+ {key:'wolf',e:'🐺',sp:'Sói',tier:3,appeal:330,lv:28},{key:'zebra',e:'🦓',sp:'Ngựa vằn',tier:4,appeal:400,lv:32},
+ {key:'giraffe',e:'🦒',sp:'Hươu cao cổ',tier:4,appeal:470,lv:36},{key:'rhino',e:'🦏',sp:'Tê giác',tier:4,appeal:540,lv:40},
+ {key:'hippo',e:'🦛',sp:'Hà mã',tier:4,appeal:610,lv:44},{key:'lion',e:'🦁',sp:'Sư tử',tier:4,appeal:700,lv:48},
+ {key:'elephant',e:'🐘',sp:'Voi',tier:5,appeal:850,lv:54},{key:'brownbear',e:'🐻',sp:'Gấu nâu',tier:5,appeal:1000,lv:60},
+ {key:'polarbear',e:'🐻‍❄️',sp:'Gấu BC',tier:5,appeal:1150,lv:66},{key:'turtle',e:'🐢',sp:'Rùa',tier:6,appeal:1350,lv:70},
+ {key:'python',e:'🐍',sp:'Trăn',tier:6,appeal:1550,lv:74},{key:'croc',e:'🐊',sp:'Cá sấu',tier:6,appeal:1800,lv:80},
+ {key:'seal',e:'🦭',sp:'Hải cẩu',tier:7,appeal:2100,lv:84},{key:'sealion',e:'🦭',sp:'Sư tử biển',tier:7,appeal:2500,lv:88},
+ {key:'dolphin',e:'🐬',sp:'Cá heo',tier:7,appeal:3000,lv:92},
+];
+const AN={};ANIMALS.forEach(a=>AN[a.key]=a);
+const ARTP='Assets/Resources/Art/Animals/';
+const HAS_ART={rabbit:1,chicken:1,goat:1,sheep:1,monkey:1,zebra:1,giraffe:1,lion:1,elephant:1};
+function avHTML(k){ return HAS_ART[k]
+  ? '<img class="av" src="'+ARTP+k+'.png" alt="" onerror="this.replaceWith(document.createTextNode(\''+AN[k].e+'\'))">'
+  : '<div class="av">'+AN[k].e+'</div>'; }
+const ATTRACTIONS=[{key:'petting',lv:7,cost:500},{key:'feeding',lv:18,cost:2500},{key:'shows',lv:26,cost:8000},{key:'rides',lv:30,cost:16000},{key:'perform',lv:45,cost:45000}];
+const MILESTONES=[{lv:7,n:'Khu vuốt ve'},{lv:18,n:'Feeding Zone / Day-Night'},{lv:30,n:'Woodland / Rides'},{lv:45,n:'Performance Arena'},{lv:60,n:'Polar Peaks'},{lv:75,n:'Reptile'},{lv:92,n:'Cá heo (endgame)'}];
+
+// ============ CURVE ============
+function roundNice(x){if(x<=0)return 0;const d=Math.ceil(Math.log10(x));const p=Math.pow(10,3-d);return Math.round(x*p)/p;}
+const ANCH=[{lv:1,xp:0},{lv:7,xp:5200},{lv:18,xp:42000},{lv:30,xp:210000},{lv:45,xp:980000},{lv:60,xp:3600000},{lv:84,xp:18000000}];
+const MAX=92,LX=new Array(MAX);LX[0]=0;
+for(let s=0;s<6;s++){const a=ANCH[s],b=ANCH[s+1];for(let lv=a.lv+1;lv<=b.lv;lv++){const f=(lv-a.lv)/(b.lv-a.lv);LX[lv-1]=roundNice(a.xp>0?a.xp*Math.pow(b.xp/a.xp,f):b.xp*Math.pow(f,2.2));}}
+const Gr=Math.pow(ANCH[6].xp/ANCH[5].xp,1/24);
+for(let lv=85;lv<=92;lv++)LX[lv-1]=roundNice(LX[lv-2]*Gr);
+function levelFromXp(xp){let lv=1;for(let i=0;i<MAX;i++)if(xp>=LX[i])lv=i+1;return lv;}
+const P=lv=>Math.round(K.S*Math.pow(Gr,lv));
+
+// ============ STATE ============
+let st,sel,msReached,evlog,tab='play',autoOn=false;
+function fm(){return{hunger:60,thirst:58,clean:64,happy:66,trust:30};}
+function newGame(){st={gold:50,gems:10,xp:0,dayF:0,owned:{rabbit:{count:1,encLv:1,enrLv:0,m:{hunger:42,thirst:36,clean:64,happy:70,trust:30}}},built:[]};msReached={};evlog=[];sel='rabbit';}
+function save(){try{localStorage.setItem('awz6mo2',JSON.stringify({st,msReached,K}));}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem('awz6mo2'));if(d&&d.st){st=d.st;msReached=d.msReached||{};if(d.K)K=Object.assign({},DEFAULTS,d.K);evlog=[];sel=Object.keys(st.owned)[0];return true;}}catch(e){}return false;}
+const owned=()=>Object.keys(st.owned);
+
+// ============ ECONOMY (đọc K trực tiếp) ============
+function avgHappy(){const k=owned();if(!k.length)return 60;let s=0;k.forEach(x=>s+=st.owned[x].m.happy);return s/k.length;}
+function happyMult(){return Math.max(K.happyFloor,Math.min(K.happyCeil,0.4+avgHappy()/100));}
+function appealOf(k){const o=st.owned[k];return AN[k].appeal*o.count*(1+K.encAppeal*(o.encLv-1))*(1+K.enrAppeal*o.enrLv);}
+function totalAppeal(){let s=0;owned().forEach(k=>s+=appealOf(k));return Math.round(s*happyMult());}
+function capacity(){let seats=0;owned().forEach(k=>{const o=st.owned[k];seats+=AN[k].appeal*o.count*(K.seatBase+K.seatPer*(o.encLv-1));});return Math.round((K.baseGate+seats)*(1+K.attractCap*st.built.length));}
+function demand(){return Math.round(totalAppeal()*K.visitorsPerAppeal);}
+function visitors(){return Math.min(demand(),capacity());}
+function goldPerSec(){return Math.max(1,Math.round(visitors()*K.spendPerVisitor*(1+K.attractRev*st.built.length)));}
+const unlockCost=k=>roundNice(500*Math.pow(1.06,AN[k].lv-1));
+const buyMoreCost=k=>Math.round(AN[k].appeal*K.costBuy*st.owned[k].count)+50;
+const upgradeCost=k=>Math.round(AN[k].appeal*K.costUp*st.owned[k].encLv)+300;
+const enrCost=k=>Math.round(AN[k].appeal*K.costEnr*(st.owned[k].enrLv+1))+200;
+const capOf=k=>2+(st.owned[k].encLv-1);
+
+// ============ XP FAUCETS ============
+const eduPerDay=()=>K.eduShare*P(levelFromXp(st.xp))*Math.min(1,happyMult());
+const dailyMissionPerDay=()=>K.dailyShare*P(levelFromXp(st.xp));
+const showPerDay=()=>K.showShare*P(levelFromXp(st.xp));
+const carePerDay=()=>owned().length*5*K.careXp;
+function xpPerDayEstimate(){const lv=levelFromXp(st.xp);const auto=$('t-care').checked;const hf=auto?1:Math.min(1,happyMult());
+  return K.eduShare*P(lv)*hf + K.dailyShare*P(lv) + K.showShare*P(lv) + (auto?owned().length*5*K.careXp:0) + (K.weeklyShare*P(lv))/7 + (K.eventMult*P(lv))/30;}
+
+// ============ TIME ============
+function accrue(step){
+  const auto=$('t-care').checked;
+  owned().forEach(k=>{const m=st.owned[k].m;
+    if(auto){m.hunger=100;m.thirst=100;m.clean=100;m.happy=100;m.trust=Math.min(100,m.trust+4*step);}
+    else{m.hunger=Math.max(0,m.hunger-K.decayPerDay*step);m.thirst=Math.max(0,m.thirst-K.decayPerDay*1.1*step);m.clean=Math.max(0,m.clean-K.decayPerDay*0.9*step);m.happy=Math.max(0,m.happy-K.decayPerDay*0.8*step);}
+  });
+  st.gold += goldPerSec()*86400*step;
+  st.xp   += eduPerDay()*step + showPerDay()*step + (auto?carePerDay()*step:0);
+}
+function onDay(d){
+  const lv=levelFromXp(st.xp);
+  st.xp += K.dailyShare*P(lv);
+  if(d%7===0) st.xp += K.weeklyShare*P(lv);
+  if(d%30===0) st.xp += K.eventMult*P(lv);
+  if($('t-manage').checked) autoManage();
+}
+function autoManage(){
+  const lv=levelFromXp(st.xp);
+  for(const a of ANIMALS) if(a.lv<=lv && !st.owned[a.key]){const c=unlockCost(a.key);if(st.gold>=c){st.gold-=c;st.owned[a.key]={count:1,encLv:1,enrLv:0,m:fm()};st.xp+=K.adoptXp;}}
+  for(const at of ATTRACTIONS) if(at.lv<=lv && !st.built.includes(at.key) && st.gold>=at.cost*1.5){st.gold-=at.cost;st.built.push(at.key);}
+  let ops=6;
+  while(ops-->0){let best=null,bc=Infinity,bt=null;
+    for(const k of owned()){const o=st.owned[k];
+      if(o.count<capOf(k)){const c=buyMoreCost(k);if(c<bc){bc=c;best=k;bt='buy';}}
+      if(o.encLv<5){const c=upgradeCost(k);if(c<bc){bc=c;best=k;bt='up';}}
+      if(o.enrLv<5){const c=enrCost(k);if(c<bc){bc=c;best=k;bt='enr';}}}
+    if(best&&st.gold>=bc*2){st.gold-=bc;if(bt==='buy')st.owned[best].count++;else if(bt==='up')st.owned[best].encLv++;else st.owned[best].enrLv++;}else break;}
+}
+function advance(days){
+  const lvB=levelFromXp(st.xp), goldB=st.gold, xpB=st.xp;
+  let target=st.dayF+days, guard=0;
+  while(st.dayF<target-1e-9 && guard++<20000){
+    const nextInt=Math.floor(st.dayF+1e-9)+1;
+    const step=Math.min(nextInt,target)-st.dayF;
+    accrue(step); st.dayF+=step;
+    if(Math.abs(st.dayF-Math.round(st.dayF))<1e-6){const dn=Math.round(st.dayF);onDay(dn);
+      const lv=levelFromXp(st.xp);for(let L=lvB+1;L<=lv;L++)MILESTONES.forEach(m=>{if(m.lv===L&&msReached[L]===undefined)msReached[L]=dn;});}
+    if(levelFromXp(st.xp)>=MAX) break;
+  }
+  st.day=Math.floor(st.dayF);
+  const lvA=levelFromXp(st.xp);
+  logEv(`⏩ +${days<1?Math.round(days*24)+'h':days+'d'} → 🪙+${fmt(st.gold-goldB)} · ⭐+${fmt(st.xp-xpB)}${lvA>lvB?' · 🆙 Lv'+lvB+'→'+lvA:''}`,'up');
+  render(); save();
+}
+
+// ============ PROJECTION (dự báo ngày đạt Lv92) ============
+function projectLv92(){
+  let xp=st.xp, day=Math.floor(st.dayF); const auto=$('t-care').checked;
+  let g=0;
+  while(levelFromXp(xp)<MAX && g++<6000){
+    day++; const lv=levelFromXp(xp); const sp=ANIMALS.filter(a=>a.lv<=lv).length;
+    const hf=auto?1:0.6;
+    xp += K.eduShare*P(lv)*hf + K.dailyShare*P(lv) + K.showShare*P(lv) + (auto?sp*5*K.careXp:0);
+    if(day%7===0) xp+=K.weeklyShare*P(lv);
+    if(day%30===0) xp+=K.eventMult*P(lv);
+  }
+  return levelFromXp(xp)>=MAX?day:null;
+}
+
+// ============ RENDER ============
+const $=id=>document.getElementById(id);
+function fmt(n){n=Math.round(n);const s=n<0?'-':'';n=Math.abs(n);
+  if(n>=1e9)return s+(n/1e9).toFixed(2)+'B';if(n>=1e6)return s+(n/1e6).toFixed(2)+'M';if(n>=1e3)return s+(n/1e3).toFixed(1)+'K';return s+n;}
+function logEv(msg,cls){evlog.unshift({msg,cls:cls||''});if(evlog.length>5)evlog.pop();}
+function renderHUD(){
+  const lv=levelFromXp(st.xp);
+  $('h-gold').textContent=fmt(st.gold);$('h-gems').textContent=st.gems;$('h-day').textContent=Math.floor(st.dayF);
+  $('h-lvchip').textContent='Lv '+lv+(lv>=MAX?' MAX':'');
+  if(lv>=MAX){$('h-xpfill').style.width='100%';$('h-xpnow').textContent='Lv 92 · MAX';$('h-proj').textContent='';}
+  else{const cur=LX[lv-1],nx=LX[lv];$('h-xpfill').style.width=Math.max(0,Math.min(100,(st.xp-cur)/(nx-cur)*100)).toFixed(1)+'%';
+    $('h-xpnow').textContent=fmt(st.xp)+' / '+fmt(nx)+' XP';
+    const proj=projectLv92();$('h-proj').textContent=proj?('Lv92 ~ngày '+proj+' ('+(proj/30).toFixed(1)+' th)'):'…';}
+}
+function renderChain(){
+  const a=totalAppeal(),d=demand(),c=capacity(),v=visitors(),capped=d>c;
+  const xd=xpPerDayEstimate(),lv=levelFromXp(st.xp);
+  const dnext=lv<MAX?((LX[lv]-st.xp)/xd):0;
+  $('chain').innerHTML='✨<b>'+fmt(a)+'</b> appeal → 👥 <b>'+fmt(v)+'</b>/'+fmt(c)+(capped?' <span class="cap">(KỊCH SỨC CHỨA)</span>':'')+' → 🪙<b>'+fmt(goldPerSec())+'</b>/s'
+    +'<br>⭐ XP/ngày <b>'+fmt(xd)+'</b> → +1 cấp sau <b>'+(lv>=MAX?'—':dnext.toFixed(1)+' ngày')+'</b>';
+}
+function statBar(l,v,c){return '<div class="statline"><div class="lbl">'+l+'</div><div class="bar"><i style="width:'+v+'%;background:'+c+'"></i></div><div class="vv">'+Math.round(v)+'</div></div>';}
+function renderBody(){
+  const lv=levelFromXp(st.xp);let h='';
+  if(tab==='play'){
+    // log
+    h+='<div class="card"><h3>📜 Vừa xảy ra (xem nhân–quả)</h3><div class="log">'
+      +(evlog.length?evlog.map(e=>'<div class="'+e.cls+'">'+e.msg+'</div>').join(''):'<div class="note">Hãy bấm một hành động bên dưới — kết quả sẽ hiện ở đây.</div>')
+      +'</div></div>';
+    // selected animal care
+    if(!sel||!st.owned[sel])sel=owned()[0];
+    const o=st.owned[sel];
+    h+='<div class="card"><div style="display:flex;align-items:center;gap:10px">'+avHTML(sel)
+      +'<div><b>'+AN[sel].sp+'</b><div class="note">×'+o.count+'/'+capOf(sel)+' · chuồng Lv'+o.encLv+' · enrich Lv'+o.enrLv+' · ✨'+fmt(appealOf(sel))+'</div></div></div>'
+      +statBar('🍖 Đói',o.m.hunger,'#EF4B5C')+statBar('💧 Khát',o.m.thirst,'#34B6F0')+statBar('🫧 Sạch',o.m.clean,'#36C98A')+statBar('😊 Vui',o.m.happy,'#FFB22E')+statBar('❤️ Tin',o.m.trust,'#FF7FA8')
+      +'<div class="care-actions">'
+      +'<button class="btn care" onclick="act(\'feed\')">🍖 Cho ăn<br><small>40🪙</small></button>'
+      +'<button class="btn care" onclick="act(\'water\')">💧 Uống<br><small>10🪙</small></button>'
+      +'<button class="btn care" onclick="act(\'clean\')">🫧 Tắm<br><small>20🪙</small></button>'
+      +'<button class="btn play" onclick="act(\'play\')">🎾 Chơi<br><small>free</small></button>'
+      +'<button class="btn care" onclick="act(\'heal\')">➕ Khám<br><small>30🪙</small></button>'
+      +'<button class="btn care" '+(o.encLv>=5?'disabled':'')+' onclick="act(\'upg\')">🏗️ Nâng cấp<br><small>'+fmt(upgradeCost(sel))+'🪙</small></button>'
+      +'</div><div class="note" style="margin-top:6px">💡 Bấm <b>Cho ăn</b> rồi nhìn dòng "Vừa xảy ra": appeal & 🪙/s <b>KHÔNG đổi</b> (vì Feed không tăng 😊). Bấm <b>Chơi</b> → 😊 tăng → appeal & 🪙/s <b>tăng</b>. Đó là bug care→happy.</div></div>';
+    // animal switch + adopt
+    h+='<div class="card"><h3>🐾 Đổi con / Nhận nuôi</h3><div class="agrid">';
+    owned().forEach(k=>{const o2=st.owned[k];h+='<div class="acard '+(sel===k?'sel':'')+'" onclick="pick(\''+k+'\')">'+avHTML(k)+'<div class="nm">'+AN[k].sp+'</div><div class="meta">×'+o2.count+' · ✨'+fmt(appealOf(k))+'</div><div class="mini">'+['hunger','thirst','clean','happy'].map(s=>'<span class="dot"><i style="width:'+o2.m[s]+'%;background:'+(o2.m[s]<35?'#EF5B6B':'#36C98A')+'"></i></span>').join('')+'</div></div>';});
+    ANIMALS.filter(a=>!st.owned[a.key]).slice(0,6).forEach(a=>{const un=lv>=a.lv,c=unlockCost(a.key),can=un&&st.gold>=c;
+      h+='<div class="acard '+(un?'':'lock')+'">'+avHTML(a.key)+'<div class="nm">'+a.sp+'</div><div class="meta">'+(un?'🪙'+fmt(c):'')+'</div>'+(un?'<button class="btn buy" '+(can?'':'disabled style="opacity:.4"')+' onclick="adopt(\''+a.key+'\')">Mua</button>':'<div class="ribbon">🔒 Lv'+a.lv+'</div>')+'</div>';});
+    h+='</div></div>';
+  }
+  else if(tab==='logic'){
+    const ks=owned();let lines='';let sumAp=0;
+    ks.slice(0,8).forEach(k=>{const o=st.owned[k];const ap=appealOf(k);sumAp+=ap;
+      lines+=AN[k].sp+': '+AN[k].appeal+'×'+o.count+'×(1+'+K.encAppeal+'·'+(o.encLv-1)+')×(1+'+K.enrAppeal+'·'+o.enrLv+') = <b>'+fmt(ap)+'</b>\n';});
+    if(ks.length>8)lines+='… +'+(ks.length-8)+' loài khác\n';
+    const a=totalAppeal(),d=demand(),c=capacity(),v=visitors(),capped=d>c,lv=levelFromXp(st.xp);
+    h+='<div class="card"><h3>🧮 Chuỗi VÀNG (appeal → khách → vàng)</h3><div class="calc">'
+      +lines
+      +'Σappeal = '+fmt(sumAp)+'\n'
+      +'happyMult = clamp('+K.happyFloor+'…'+K.happyCeil+', 0.4+'+Math.round(avgHappy())+'/100) = <span class="hl">×'+happyMult().toFixed(2)+'</span>\n'
+      +'appeal = round(Σ×happyMult) = <b>'+fmt(a)+'</b>\n\n'
+      +'demand = appeal×'+K.visitorsPerAppeal+' = '+fmt(d)+'\n'
+      +'capacity = round((' +K.baseGate+ '+Σseats)×(1+'+K.attractCap+'·'+st.built.length+')) = '+fmt(c)+'\n'
+      +'visitors = min(demand, capacity) = <span class="'+(capped?'cap':'hl')+'">'+fmt(v)+'</span>'+(capped?'  ← KỊCH (mở rộng chuồng!)':'')+'\n'
+      +'gold/s = max(1, visitors×'+K.spendPerVisitor+'×(1+'+K.attractRev+'·'+st.built.length+')) = <b>'+fmt(goldPerSec())+'</b>'
+      +'</div></div>';
+    h+='<div class="card"><h3>🧮 Chuỗi XP (pacing 6 tháng)</h3><div class="calc">'
+      +'P(Lv'+lv+') = '+K.S+'×'+Gr.toFixed(4)+'^'+lv+' = <b>'+fmt(P(lv))+'</b>\n\n'
+      +'Education = '+K.eduShare+'·P×happyFactor = '+fmt(eduPerDay())+'/ngày\n'
+      +'Daily missions = '+K.dailyShare+'·P = '+fmt(dailyMissionPerDay())+'/ngày\n'
+      +'Show = '+K.showShare+'·P = '+fmt(showPerDay())+'/ngày\n'
+      +'Care = loài×5×'+K.careXp+' = '+fmt(carePerDay())+'/ngày\n'
+      +'Weekly = '+K.weeklyShare+'·P /7 = '+fmt(K.weeklyShare*P(lv)/7)+'/ngày\n'
+      +'Event = '+K.eventMult+'·P /30 = '+fmt(K.eventMult*P(lv)/30)+'/ngày\n'
+      +'──────────────\n'
+      +'XP/ngày ≈ <b>'+fmt(xpPerDayEstimate())+'</b>\n'
+      +'Cổng kế (Lv'+(lv+1)+') cần '+(lv<MAX?fmt(LX[lv]-LX[lv-1]):'—')+' XP\n'
+      +'→ +1 cấp sau <span class="hl">'+(lv<MAX?((LX[lv]-st.xp)/xpPerDayEstimate()).toFixed(1)+' ngày':'MAX')+'</span>\n'
+      +'→ dự báo Lv92 quanh <span class="hl">ngày '+(projectLv92()||'?')+'</span>'
+      +'</div></div>';
+  }
+  else if(tab==='tune'){
+    h+='<div class="card"><h3>🎛️ Chỉnh số — đổi xong đổi liền (tab Logic xem hiệu ứng)</h3>';
+    KNOBS.forEach(kn=>{h+='<div class="knob"><div class="kl">'+kn.label+'<small>nguồn: '+kn.src+'</small></div><input type="number" step="'+kn.step+'" value="'+K[kn.k]+'" oninput="setK(\''+kn.k+'\',this.value)"></div>';});
+    h+='<button class="btn buy" style="margin-top:10px" onclick="resetK()">↺ Khôi phục mặc định</button></div>';
+    h+='<div class="card"><h3>📍 Chỉnh ở đâu trong game thật?</h3><div class="note">'
+      +'• <b>Đường cong cấp</b>: anchor LEVEL_XP — <b>design/gdd/zoo-level.md §Formula 2</b> & <code>act/data.jsx → LEVELS</code><br>'
+      +'• <b>Faucet XP (S, shares)</b>: <b>xp-pacing-redesign-2026-06-08.md §4 & §7</b>; số/level trong <b>xp-pacing-6month.xlsx → Faucet_PerLevel</b>; model <code>tools/sim/xp_pacing.js</code><br>'
+      +'• <b>Công thức kinh tế</b> (spend, appeal mult…): <b>zoo-economy.md §4/§7</b> (hoặc economy-redesign.md nếu chốt redesign)<br>'
+      +'• <b>Chăm sóc / decay / happy</b>: <b>animal-care.md §3.2 & §4</b>, <code>act/data.jsx → ACTIONS, STATS</code><br>'
+      +'• <b>Giá / chi phí</b>: <b>currency-system.md</b>, <code>act/data.jsx</code><br>'
+      +'• <b>Trong prototype này</b>: object <code>DEFAULTS</code> ở đầu thẻ &lt;script&gt;.'
+      +'</div></div>';
+  }
+  else if(tab==='goal'){
+    h+='<div class="card"><h3>🏁 Mốc tiến trình (mục tiêu Lv92 ≈ 180 ngày)</h3>';
+    MILESTONES.forEach(m=>{const done=msReached[m.lv]!==undefined;const eta=done?('ngày '+msReached[m.lv]+' · '+(msReached[m.lv]/30).toFixed(1)+' th'):(lv>=m.lv?'—':'cần Lv'+m.lv);
+      h+='<div class="mile '+(done?'done':'')+'"><span>'+(done?'✓ ':'')+'Lv'+m.lv+' · '+m.n+'</span><span class="eta">'+eta+'</span></div>';});
+    h+='<div class="note" style="margin-top:8px">Dùng <b>+1 tháng</b> nhiều lần (auto-care + auto-mở rộng bật) để xem mốc đạt đúng quanh 6 tháng. Mở tab 🎛️ đổi <b>S</b> rồi xem dự báo Lv92 đổi theo.</div></div>';
+  }
+  $('body').innerHTML=h;
+  $('srcnote').textContent = tab==='play'
+    ? 'Mẹo: tắt Auto-care, bấm +1 ngày để xem nhu cầu giảm & XP chậm lại. Bật lại để chơi nhanh.'
+    : 'Pacing 6 tháng: S='+K.S+' · G='+Gr.toFixed(4)+' · curve & faucet giữ nguyên mốc unlock.';
+}
+function render(){renderHUD();renderChain();renderBody();}
+
+// ============ ACTIONS (hiện nhân–quả) ============
+function snap(){return{a:totalAppeal(),v:visitors(),g:goldPerSec(),hm:happyMult()};}
+function diff(b,a){
+  const da=a.a-b.a,dg=a.g-b.g;
+  const cls=dg>0?'up':(dg<0?'down':'same');
+  return {cls, txt:`✨appeal ${fmt(b.a)}→${fmt(a.a)}${da===0?' (không đổi)':''} · 🪙/s ${fmt(b.g)}→${fmt(a.g)}${dg===0?' (không đổi)':''}`};
+}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1200);}
+window.pick=k=>{sel=k;render();};
+window.adopt=k=>{const c=unlockCost(k);if(st.gold<c){toast('Cần '+fmt(c)+'🪙');return;}st.gold-=c;st.owned[k]={count:1,encLv:1,enrLv:0,m:fm()};st.xp+=K.adoptXp;sel=k;logEv('🎉 Nhận nuôi '+AN[k].sp+' · +'+K.adoptXp+' XP · −'+fmt(c)+'🪙','up');render();save();};
+window.act=type=>{
+  const o=st.owned[sel];const b=snap();let msg='';
+  if(type==='feed'){if(o.m.hunger>=98){toast('Đói đã đầy');return;}if(st.gold<40){toast('Cần 40🪙');return;}st.gold-=40;o.m.hunger=100;st.xp+=K.careXp;msg='🍖 Cho ăn '+AN[sel].sp+' (+'+K.careXp+'XP, −40🪙) → ';}
+  else if(type==='water'){if(o.m.thirst>=98){toast('Khát đã đầy');return;}if(st.gold<10){toast('Cần 10🪙');return;}st.gold-=10;o.m.thirst=100;st.xp+=K.careXp;msg='💧 Cho uống (+'+K.careXp+'XP, −10🪙) → ';}
+  else if(type==='clean'){if(o.m.clean>=98){toast('Đã sạch');return;}if(st.gold<20){toast('Cần 20🪙');return;}st.gold-=20;o.m.clean=100;st.xp+=K.careXp;msg='🫧 Tắm (+'+K.careXp+'XP, −20🪙) → ';}
+  else if(type==='play'){if(o.m.happy>=98){toast('Đã vui');return;}o.m.happy=100;o.m.trust=Math.min(100,o.m.trust+4);st.xp+=K.careXp;msg='🎾 Chơi (+'+K.careXp+'XP, free) → ';}
+  else if(type==='heal'){if(st.gold<30){toast('Cần 30🪙');return;}st.gold-=30;o.m.happy=Math.min(100,o.m.happy+40);o.m.trust=Math.min(100,o.m.trust+2);st.xp+=K.careXp;msg='➕ Khám (+'+K.careXp+'XP, −30🪙) → ';}
+  else if(type==='upg'){if(o.encLv>=5){toast('Tối đa Lv5');return;}const c=upgradeCost(sel);if(st.gold<c){toast('Cần '+fmt(c)+'🪙');return;}st.gold-=c;o.encLv++;msg='🏗️ Nâng chuồng Lv'+o.encLv+' (−'+fmt(c)+'🪙) → ';}
+  const a=snap();const dd=diff(b,a);logEv(msg+dd.txt,dd.cls);render();save();
+};
+window.setK=(k,v)=>{const n=parseFloat(v);if(!isNaN(n)){K[k]=n;renderHUD();renderChain();if(tab==='logic')renderBody();save();}};
+window.resetK=()=>{K=Object.assign({},DEFAULTS);render();save();toast('Đã khôi phục số mặc định');};
+
+// ============ WIRE ============
+document.querySelector('.timebar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.id==='autobtn'){autoOn=!autoOn;b.textContent=autoOn?'⏸ Auto':'▶ Auto';b.style.background=autoOn?'#6ad08a':'';b.style.color=autoOn?'#06210f':'';return;}
+  if(b.dataset.h)advance(+b.dataset.h/24); else if(b.dataset.d)advance(+b.dataset.d);});
+$('tabs').addEventListener('click',e=>{const t=e.target.closest('.tab');if(!t)return;tab=t.dataset.tab;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));render();});
+$('reset').addEventListener('click',()=>{if(confirm('Reset trò chơi (giữ số đã chỉnh)?')){newGame();render();save();}});
+let acc=0,last=performance.now();
+setInterval(()=>{const now=performance.now();const dt=(now-last)/1000;last=now;if(autoOn&&levelFromXp(st.xp)<MAX){acc+=dt*7;while(acc>=1){acc--;advanceSilent(1);}render();save();}},120);
+function advanceSilent(days){const lvB=levelFromXp(st.xp);let target=st.dayF+days,guard=0;while(st.dayF<target-1e-9&&guard++<100){const nextInt=Math.floor(st.dayF+1e-9)+1;const step=Math.min(nextInt,target)-st.dayF;accrue(step);st.dayF+=step;if(Math.abs(st.dayF-Math.round(st.dayF))<1e-6){const dn=Math.round(st.dayF);onDay(dn);const lv=levelFromXp(st.xp);for(let L=lvB+1;L<=lv;L++)MILESTONES.forEach(m=>{if(m.lv===L&&msReached[L]===undefined)msReached[L]=dn;});}}st.day=Math.floor(st.dayF);}
+setInterval(save,5000);
+if(!load())newGame();
+render();
+</script>
+</body>
+</html>

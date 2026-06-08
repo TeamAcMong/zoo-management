@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Animal World Zoo</title>
+<style>
+:root{--gold:#FFB22E;--gem:#36C9F0;--xp:#9B7BFF;--ink:#2a3340;--card:#ffffff;--line:#e6e2d8;--good:#36C98A;--bad:#EF5B6B;--accent:#37b56a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+body{margin:0;background:#cfe9d6}
+#app{max-width:480px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;background:#f4f1e8;position:relative;overflow:hidden}
+/* HUD */
+.hud{padding:8px 10px;background:linear-gradient(180deg,#fffdf6,#f7f3e7);border-bottom:1px solid var(--line);z-index:20}
+.hudrow{display:flex;gap:6px;align-items:center}
+.pill{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-weight:800;color:var(--ink);box-shadow:0 1px 0 #e9e4d6;font-size:13px}
+.pill.gold{color:#b7791f}.pill.gem{color:#1b8fb0}
+.xpwrap{flex:1}
+.xpbar{height:14px;background:#eee7d4;border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+.xpfill{height:100%;background:linear-gradient(90deg,#9B7BFF,#c0a8ff);width:0%;transition:width .4s}
+.xplbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#4a3d6b}
+/* scene */
+.scene{flex:1;position:relative;overflow:hidden;background:linear-gradient(180deg,#bfe3ff 0%,#d8f0e0 42%,#a9d98b 43%,#8fce78 100%)}
+.sun{position:absolute;top:14px;right:18px;font-size:34px;filter:drop-shadow(0 0 8px #ffe89a)}
+.cloud{position:absolute;font-size:30px;opacity:.85;animation:drift linear infinite}
+@keyframes drift{from{transform:translateX(-60px)}to{transform:translateX(520px)}}
+.gate{position:absolute;left:8px;bottom:8px;background:#fff;border:2px solid var(--line);border-radius:12px;padding:6px 9px;font-weight:800;font-size:12px;color:var(--ink);box-shadow:0 2px 4px rgba(0,0,0,.12);z-index:5}
+.path{position:absolute;left:0;right:0;bottom:46px;height:30px}
+.visitor{position:absolute;bottom:0;font-size:20px;animation:walk linear infinite}
+@keyframes walk{from{left:-30px}to{left:100%}}
+.plots{position:absolute;left:0;right:0;top:54px;bottom:84px;padding:6px 8px;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:min-content;gap:8px;overflow-y:auto}
+.plot{background:rgba(255,255,255,.86);border:2px solid #fff;border-radius:16px;padding:8px 6px;text-align:center;box-shadow:0 3px 6px rgba(0,0,0,.12);cursor:pointer;position:relative}
+.plot.alert{border-color:var(--bad);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(239,91,107,.25)}}
+.plot .sp{font-size:40px;line-height:1;display:inline-block;animation:bob 2.4s ease-in-out infinite}
+.plot img.sp{width:48px;height:48px;object-fit:contain}
+@keyframes bob{50%{transform:translateY(-5px)}}
+.plot .nm{font-weight:800;font-size:12.5px;color:var(--ink);margin-top:2px}
+.plot .mt{font-size:10.5px;color:#8a8472}
+.plot .mood{position:absolute;top:5px;left:7px;font-size:14px}
+.plot .cnt{position:absolute;top:5px;right:7px;background:#fff;border:1px solid var(--line);border-radius:10px;font-size:10px;font-weight:800;padding:0 5px;color:var(--ink)}
+.coin{position:absolute;font-size:22px;cursor:pointer;animation:floatup 2.6s ease-in forwards;z-index:8;filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+@keyframes floatup{0%{opacity:0;transform:translateY(0) scale(.6)}15%{opacity:1;transform:translateY(-6px) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(1)}}
+/* bottom tabs */
+.tabbar{display:flex;background:#fffdf6;border-top:1px solid var(--line);z-index:20}
+.tabbtn{flex:1;text-align:center;padding:9px 0 7px;font-size:11px;font-weight:800;color:#9a9281;cursor:pointer;border-top:3px solid transparent}
+.tabbtn .ic{font-size:20px;display:block}
+.tabbtn.on{color:var(--accent);border-top-color:var(--accent)}
+/* quest strip + panel */
+.queststrip{background:#fff7e6;border-top:1px solid #f0d9a0;padding:9px 12px;font-size:12.5px;font-weight:700;color:#7a5b1e;cursor:pointer;display:flex;align-items:center;gap:6px;z-index:20}
+.queststrip .pg{background:#ffe3a3;border-radius:10px;padding:1px 8px;font-size:11px;margin-left:4px}
+.queststrip.done{background:#dff7e7;color:#1d7a44;border-color:#9fe3bb;animation:pulse 1.3s infinite}
+.kvq{padding:6px 0;border-bottom:1px dashed var(--line);color:#5d5645;font-size:13.5px;display:flex;justify-content:space-between}
+/* sheet (animals/build) */
+.sheet{position:absolute;left:0;right:0;bottom:0;top:0;background:#f4f1e8;z-index:30;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .25s}
+.sheet.open{transform:translateY(0)}
+.sheethd{display:flex;align-items:center;justify-content:space-between;padding:12px;background:#fffdf6;border-bottom:1px solid var(--line)}
+.sheethd h2{margin:0;font-size:16px;color:var(--ink)}
+.sheetbody{flex:1;overflow-y:auto;padding:10px}
+.x{background:#eee7d4;border:none;border-radius:10px;width:34px;height:34px;font-size:18px;cursor:pointer}
+.row{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:8px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 3px rgba(0,0,0,.05)}
+.row .ic{font-size:34px;width:46px;text-align:center}
+.row img.ic{width:42px;height:42px;object-fit:contain}
+.row .info{flex:1}.row .info b{color:var(--ink)}.row .info .s{font-size:11.5px;color:#8a8472}
+.row.lock{opacity:.5}
+.cta{border:none;border-radius:12px;padding:9px 14px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap}
+.cta.buy{background:var(--gold);color:#5a3d00}.cta.buy:disabled{opacity:.45}
+.cta.up{background:#5aa9ff;color:#06294d}
+/* care modal */
+.modal{position:fixed;inset:0;background:rgba(20,28,40,.55);z-index:60;display:none;align-items:flex-end;justify-content:center}
+.modal.open{display:flex}
+.msheet{background:#f4f1e8;width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:14px;max-height:88%;overflow-y:auto;animation:rise .25s}
+@keyframes rise{from{transform:translateY(40px);opacity:.4}}
+.mhead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.mhead .big{font-size:50px}.mhead img.big{width:56px;height:56px;object-fit:contain}
+.statline{display:flex;align-items:center;gap:8px;margin:6px 0}
+.statline .lbl{width:80px;font-size:12px;color:var(--ink);font-weight:700}
+.bar{flex:1;height:12px;background:#eee7d4;border:1px solid var(--line);border-radius:7px;overflow:hidden}.bar i{display:block;height:100%;transition:width .3s}
+.statline .vv{width:34px;text-align:right;font-size:11px;color:#8a8472}
+.acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.abtn{border:none;border-radius:14px;padding:10px 4px;font-weight:800;font-size:12px;cursor:pointer;background:#fff;border:1px solid var(--line);color:var(--ink);box-shadow:0 2px 3px rgba(0,0,0,.06)}
+.abtn .e{font-size:22px;display:block}.abtn .c{font-size:10px;color:#8a8472;font-weight:600}
+.abtn.play{background:#dff7e7;border-color:#9fe3bb}
+.abtn:active{transform:scale(.95)}
+/* dev tool */
+.devbtn{position:absolute;right:10px;bottom:96px;width:46px;height:46px;border-radius:50%;background:#2a3340;color:#fff;border:none;font-size:22px;z-index:25;box-shadow:0 3px 8px rgba(0,0,0,.3);cursor:pointer}
+.devpanel{position:fixed;inset:0;background:rgba(20,28,40,.6);z-index:70;display:none;align-items:center;justify-content:center}
+.devpanel.open{display:flex}
+.devcard{background:#1e2630;color:#e8eef5;width:92%;max-width:400px;border-radius:16px;padding:16px;max-height:88%;overflow-y:auto}
+.devcard h3{margin:0 0 6px}.devcard h4{margin:12px 0 6px;font-size:13px;color:#90a2b6}
+.dgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.dbtn{background:#2c3845;border:1px solid #3a4a5d;color:#e8eef5;border-radius:9px;padding:9px 4px;font-weight:700;font-size:12px;cursor:pointer}
+.dbtn.on{background:var(--accent);color:#06210f;border-color:var(--accent)}
+.dbtn:active{transform:scale(.95)}
+.devnote{font-size:11px;color:#7d90a4;margin-top:6px;line-height:1.5}
+/* tutorial */
+.tut{position:fixed;left:0;right:0;top:0;z-index:80;display:none;justify-content:center;align-items:flex-start;pointer-events:none}
+.tut.show{display:flex}
+.tutbox{pointer-events:auto;background:#fffdf6;border:2px solid var(--accent);border-radius:16px;margin:58px 12px 0;padding:12px 14px;max-width:456px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.tutbox h4{margin:0 0 4px;color:var(--ink);font-size:15px}
+.tutbox p{margin:0 0 10px;color:#5d5645;font-size:13px;line-height:1.5}
+.tutrow{display:flex;gap:8px;align-items:center}
+.tutrow .skip{background:none;border:none;color:#9a9281;font-size:12px;cursor:pointer;margin-left:auto}
+.tutrow .next{background:var(--accent);color:#06210f;border:none;border-radius:10px;padding:8px 16px;font-weight:800;cursor:pointer}
+.spot{position:relative;z-index:81 !important;box-shadow:0 0 0 4px rgba(55,181,106,.75) !important;border-radius:14px;animation:spotpulse 1.1s infinite}
+@keyframes spotpulse{50%{box-shadow:0 0 0 7px rgba(55,181,106,.35) !important}}
+.welcome{position:fixed;inset:0;z-index:90;background:rgba(20,28,40,.6);display:flex;align-items:center;justify-content:center}
+.wcard{background:#fffdf6;border-radius:20px;padding:22px;max-width:340px;text-align:center;margin:16px}
+.wcard .em{font-size:56px}.wcard h2{margin:8px 0;color:var(--ink)}.wcard p{color:#5d5645;font-size:13.5px;line-height:1.55}
+.wcard button{background:var(--accent);color:#06210f;border:none;border-radius:12px;padding:11px 22px;font-weight:800;font-size:15px;margin-top:8px;cursor:pointer;width:100%}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:64px;background:#2a3340;color:#fff;padding:9px 16px;border-radius:22px;font-weight:800;font-size:13px;opacity:0;transition:.25s;z-index:100;pointer-events:none;max-width:90%;text-align:center}
+.toast.show{opacity:1;top:74px}
+.levelup{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%) scale(.6);font-size:40px;font-weight:900;color:var(--xp);opacity:0;z-index:95;pointer-events:none;text-shadow:0 2px 10px rgba(155,123,255,.5)}
+.levelup.show{animation:lvpop 1.6s ease}
+@keyframes lvpop{15%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-90%) scale(1)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hud">
+    <div class="hudrow">
+      <div class="pill gold">🪙 <span id="hgold">50</span></div>
+      <div class="pill gem">💎 <span id="hgems">10</span></div>
+      <div class="xpwrap"><div class="xpbar"><div class="xpfill" id="hxpfill"></div><div class="xplbl" id="hxplbl">Lv 1</div></div></div>
+    </div>
+    <div id="hfameline" style="margin-top:6px;font-size:11.5px;font-weight:800;color:#b25fb0;text-align:center"></div>
+  </div>
+
+  <div class="scene" id="scene">
+    <div class="sun">☀️</div>
+    <div class="cloud" style="top:24px;animation-duration:34s">☁️</div>
+    <div class="cloud" style="top:60px;animation-duration:48s;animation-delay:-12s">⛅</div>
+    <div class="gate" id="gate">🎫 <span id="vcount">0</span> khách</div>
+    <div class="path" id="path"></div>
+    <div class="plots" id="plots"></div>
+  </div>
+
+  <button class="devbtn" id="devbtn" title="Công cụ Dev">🛠️</button>
+
+  <div class="queststrip" id="queststrip">📋 Nhiệm vụ</div>
+  <div class="tabbar" id="tabbar">
+    <div class="tabbtn on" data-tab="zoo"><span class="ic">🏠</span>Sở thú</div>
+    <div class="tabbtn" data-tab="animals"><span class="ic">🐾</span>Thú</div>
+    <div class="tabbtn" data-tab="build"><span class="ic">🎡</span>Xây dựng</div>
+  </div>
+
+  <!-- sheets -->
+  <div class="sheet" id="sheet-animals">
+    <div class="sheethd"><h2>🐾 Nhận nuôi</h2><button class="x" data-close>✕</button></div>
+    <div class="sheetbody" id="animals-body"></div>
+  </div>
+  <div class="sheet" id="sheet-build">
+    <div class="sheethd"><h2>🎡 Xây dựng & nâng cấp</h2><button class="x" data-close>✕</button></div>
+    <div class="sheetbody" id="build-body"></div>
+  </div>
+</div>
+
+<!-- care modal -->
+<div class="modal" id="care"><div class="msheet" id="care-body"></div></div>
+<!-- quest modal -->
+<div class="modal" id="questmodal"><div class="msheet" id="quest-body"></div></div>
+
+<!-- dev panel -->
+<div class="devpanel" id="devpanel">
+  <div class="devcard">
+    <h3>🛠️ Công cụ Dev</h3>
+    <div class="devnote">Tăng tài nguyên & tua thời gian để cảm nhận tiến trình (game thật chạy real-time).</div>
+    <h4>⏱️ Tốc độ thời gian</h4>
+    <div class="dgrid" id="speeds"></div>
+    <h4>⏩ Tua nhanh</h4>
+    <div class="dgrid">
+      <button class="dbtn" data-jump="1">+1 ngày</button>
+      <button class="dbtn" data-jump="7">+1 tuần</button>
+      <button class="dbtn" data-jump="30">+1 tháng</button>
+    </div>
+    <h4>💰 Tài nguyên</h4>
+    <div class="dgrid">
+      <button class="dbtn" data-gold="1000">+1K 🪙</button>
+      <button class="dbtn" data-gold="50000">+50K 🪙</button>
+      <button class="dbtn" data-gold="1000000">+1M 🪙</button>
+      <button class="dbtn" data-gems="50">+50 💎</button>
+      <button class="dbtn" data-lvl="1">+1 cấp</button>
+      <button class="dbtn" data-lvl="5">+5 cấp</button>
+    </div>
+    <h4>🔓 Khác</h4>
+    <div class="dgrid">
+      <button class="dbtn" id="unlockall">Mở khoá hết</button>
+      <button class="dbtn" id="replaytut">Xem lại hướng dẫn</button>
+      <button class="dbtn" id="resetgame">↺ Reset</button>
+    </div>
+    <button class="dbtn" style="width:100%;margin-top:12px;background:#37b56a;color:#06210f" id="devclose">Đóng</button>
+  </div>
+</div>
+
+<!-- tutorial -->
+<div class="welcome" id="welcome">
+  <div class="wcard">
+    <div class="em">🦁🐘🐧</div>
+    <h2>Chào mừng đến Sở thú!</h2>
+    <p>Nhận nuôi thú, chăm sóc chúng cho vui vẻ — thú vui sẽ hút khách, khách trả vàng. Sở thú tự kiếm tiền kể cả khi bạn rời đi. Sẵn sàng mở cổng?</p>
+    <button id="wstart">Bắt đầu ▶</button>
+  </div>
+</div>
+<div class="tut" id="tut"><div class="tutbox">
+  <h4 id="tut-h"></h4><p id="tut-p"></p>
+  <div class="tutrow"><button class="skip" id="tut-skip">Bỏ qua hướng dẫn</button><button class="next" id="tut-next">Tiếp ▶</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<div class="levelup" id="levelup"></div>
+
+<script>
+"use strict";
+// ===== KNOBS (pacing 6 tháng) =====
+const K={S:1431,spendPerVisitor:0.05,visitorsPerAppeal:1.0,attractRev:0.12,attractCap:0.15,encAppeal:0.25,enrAppeal:0.10,seatBase:0.6,seatPer:0.5,baseGate:5,happyFloor:0.5,happyCeil:1.4,decayPerDay:45,eduShare:0.6,dailyShare:0.25,showShare:0.15,weeklyShare:0.9,eventMult:4,careXp:3,adoptXp:40,costBuy:22,costUp:160,costEnr:40,fameToVisitor:0.5};
+// ===== DATA =====
+const ANIMALS=[
+ {key:'rabbit',e:'🐰',nm:'Clover',sp:'Thỏ',appeal:3,lv:1},{key:'chicken',e:'🐔',nm:'Henrietta',sp:'Gà',appeal:8,lv:1},
+ {key:'duck',e:'🦆',nm:'Puddles',sp:'Vịt',appeal:14,lv:2},{key:'dog',e:'🐶',nm:'Biscuit',sp:'Chó',appeal:30,lv:3},
+ {key:'cat',e:'🐱',nm:'Mittens',sp:'Mèo',appeal:50,lv:5},{key:'goat',e:'🐐',nm:'Pebble',sp:'Dê',appeal:70,lv:6},
+ {key:'sheep',e:'🐑',nm:'Cloud',sp:'Cừu',appeal:85,lv:8},{key:'horse',e:'🐴',nm:'Comet',sp:'Ngựa',appeal:130,lv:11},
+ {key:'donkey',e:'🫏',nm:'Jasper',sp:'Lừa',appeal:150,lv:13},{key:'alpaca',e:'🦙',nm:'Tofu',sp:'Alpaca',appeal:170,lv:15},
+ {key:'cow',e:'🐄',nm:'Daisy',sp:'Bò',appeal:190,lv:17},{key:'fox',e:'🦊',nm:'Ember',sp:'Cáo',appeal:230,lv:20},
+ {key:'monkey',e:'🐵',nm:'Mango',sp:'Khỉ',appeal:260,lv:23},{key:'raccoon',e:'🦝',nm:'Bandit',sp:'Gấu mèo',appeal:290,lv:25},
+ {key:'wolf',e:'🐺',nm:'Shadow',sp:'Sói',appeal:330,lv:28},{key:'zebra',e:'🦓',nm:'Pyjama',sp:'Ngựa vằn',appeal:400,lv:32},
+ {key:'giraffe',e:'🦒',nm:'Stretch',sp:'Hươu cao cổ',appeal:470,lv:36},{key:'rhino',e:'🦏',nm:'Tank',sp:'Tê giác',appeal:540,lv:40},
+ {key:'hippo',e:'🦛',nm:'Bubbles',sp:'Hà mã',appeal:610,lv:44},{key:'lion',e:'🦁',nm:'Leo',sp:'Sư tử',appeal:700,lv:48},
+ {key:'elephant',e:'🐘',nm:'Nellie',sp:'Voi',appeal:850,lv:54},{key:'brownbear',e:'🐻',nm:'Barnaby',sp:'Gấu nâu',appeal:1000,lv:60},
+ {key:'polarbear',e:'🐻‍❄️',nm:'Frost',sp:'Gấu Bắc Cực',appeal:1150,lv:66},{key:'turtle',e:'🐢',nm:'Shelly',sp:'Rùa',appeal:1350,lv:70},
+ {key:'python',e:'🐍',nm:'Noodle',sp:'Trăn',appeal:1550,lv:74},{key:'croc',e:'🐊',nm:'Snap',sp:'Cá sấu',appeal:1800,lv:80},
+ {key:'seal',e:'🦭',nm:'Pearl',sp:'Hải cẩu',appeal:2100,lv:84},{key:'sealion',e:'🦭',nm:'Captain',sp:'Sư tử biển',appeal:2500,lv:88},
+ {key:'dolphin',e:'🐬',nm:'Echo',sp:'Cá heo',appeal:3000,lv:92},
+];
+const AN={};ANIMALS.forEach(a=>AN[a.key]=a);
+const ARTP='Assets/Resources/Art/Animals/';const HAS_ART={rabbit:1,chicken:1,goat:1,sheep:1,monkey:1,zebra:1,giraffe:1,lion:1,elephant:1};
+function sprite(k,cls){return HAS_ART[k]?'<img class="'+(cls||'sp')+'" src="'+ARTP+k+'.png" onerror="this.replaceWith(document.createTextNode(\''+AN[k].e+'\'))">':'<span class="'+(cls||'sp')+'">'+AN[k].e+'</span>';}
+const ATTRACTIONS=[{key:'petting',nm:'Khu vuốt ve',ic:'🤲',lv:7,cost:500},{key:'feeding',nm:'Khu cho ăn',ic:'🥕',lv:18,cost:2500},{key:'shows',nm:'Trình diễn',ic:'🎤',lv:26,cost:8000},{key:'rides',nm:'Cưỡi thú',ic:'🐎',lv:30,cost:16000},{key:'perform',nm:'Đấu trường',ic:'🎪',lv:45,cost:45000}];
+const VEMOJI=['🧑','👩','👨','🧒','👧','👦','👵','👴','🧕','👲'];
+// ===== QUESTS (động cơ đầu game: làm việc → XP+vàng → lên cấp → mở khoá) =====
+const QUESTS=[
+ {t:'Chào Clover',o:[{k:'play',n:1,l:'Chơi với thú (🎾)'},{k:'feed',n:1,l:'Cho ăn (🍖)'}],xp:60,gold:150},
+ {t:'Người chăm thú',o:[{k:'feed',n:3,l:'Cho ăn 3 lần'},{k:'clean',n:1,l:'Tắm 1 lần'}],xp:160,gold:250},
+ {t:'Mở rộng chuồng',o:[{k:'upg',n:1,l:'Nâng cấp chuồng (🏗️)'}],xp:320,gold:450},
+ {t:'Sưu tầm',o:[{k:'level',n:3,l:'Đạt Cấp 3'},{k:'adopt',n:1,l:'Nhận nuôi loài mới'}],xp:650,gold:900},
+ {t:'Đông khách',o:[{k:'level',n:5,l:'Đạt Cấp 5'},{k:'owned',n:3,l:'Sở hữu 3 loài'}],xp:1300,gold:1800},
+ {t:'Xây tiện ích',o:[{k:'level',n:7,l:'Đạt Cấp 7'},{k:'build',n:1,l:'Xây 1 tiện ích (🎡)'}],xp:2300,gold:3500},
+ {t:'Quản lý thực thụ',o:[{k:'level',n:10,l:'Đạt Cấp 10'},{k:'owned',n:5,l:'Sở hữu 5 loài'}],xp:3000,gold:6000},
+];
+// ===== CURVE =====
+function roundNice(x){if(x<=0)return 0;const d=Math.ceil(Math.log10(x));const p=Math.pow(10,3-d);return Math.round(x*p)/p;}
+const ANCH=[{lv:1,xp:0},{lv:7,xp:5200},{lv:18,xp:42000},{lv:30,xp:210000},{lv:45,xp:980000},{lv:60,xp:3600000},{lv:84,xp:18000000}];
+const MAX=92,LX=new Array(MAX);LX[0]=0;
+for(let s=0;s<6;s++){const a=ANCH[s],b=ANCH[s+1];for(let lv=a.lv+1;lv<=b.lv;lv++){const f=(lv-a.lv)/(b.lv-a.lv);LX[lv-1]=roundNice(a.xp>0?a.xp*Math.pow(b.xp/a.xp,f):b.xp*Math.pow(f,2.2));}}
+const Gr=Math.pow(ANCH[6].xp/ANCH[5].xp,1/24);for(let lv=85;lv<=92;lv++)LX[lv-1]=roundNice(LX[lv-2]*Gr);
+const levelFromXp=xp=>{let lv=1;for(let i=0;i<MAX;i++)if(xp>=LX[i])lv=i+1;return lv;};
+const P=lv=>Math.round(K.S*Math.pow(Gr,lv));
+// ===== STATE =====
+let st,sel,disp={gold:50},lastLv=1;
+function fm(){return{hunger:60,thirst:58,clean:64,happy:66,trust:30};}
+function newGame(){st={gold:50,gems:10,xp:0,t:0,owned:{rabbit:{count:1,encLv:1,enrLv:0,m:{hunger:42,thirst:36,clean:64,happy:70,trust:30}}},built:[],counts:{feed:0,water:0,clean:0,play:0,heal:0,upg:0,adopt:0,build:0},questIdx:0,tut:0,speed:1440};sel='rabbit';disp.gold=50;lastLv=1;}
+function save(){try{localStorage.setItem('awzgame',JSON.stringify(st));}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem('awzgame'));if(d&&d.owned){st=d;if(!st.counts)st.counts={feed:0,water:0,clean:0,play:0,heal:0,upg:0,adopt:0,build:0};if(st.questIdx==null)st.questIdx=0;sel=Object.keys(st.owned)[0];disp.gold=st.gold;lastLv=levelFromXp(st.xp);return true;}}catch(e){}return false;}
+const owned=()=>Object.keys(st.owned);
+// ===== ECONOMY =====
+const avgHappy=()=>{const k=owned();if(!k.length)return 60;let s=0;k.forEach(x=>s+=st.owned[x].m.happy);return s/k.length;};
+const happyMult=()=>Math.max(K.happyFloor,Math.min(K.happyCeil,0.4+avgHappy()/100));
+const appealOf=k=>{const o=st.owned[k];return AN[k].appeal*o.count*(1+K.encAppeal*(o.encLv-1))*(1+K.enrAppeal*o.enrLv);};
+const totalAppeal=()=>{let s=0;owned().forEach(k=>s+=appealOf(k));return Math.round(s*happyMult());};
+const capacity=()=>{let seats=0;owned().forEach(k=>{const o=st.owned[k];seats+=AN[k].appeal*o.count*(K.seatBase+K.seatPer*(o.encLv-1));});return Math.round((K.baseGate+seats)*(1+K.attractCap*st.built.length));};
+// ===== FAME (Nổi tiếng) — mỗi con thú góp fame; tổng fame × tỉ lệ → khách =====
+const fameOf=k=>Math.round(appealOf(k));          // fame của 1 loài (đã tính số lượng, chuồng, enrichment)
+const totalFame=()=>totalAppeal();                 // tổng fame (đã nhân happyMult)
+const visitors=()=>Math.min(Math.round(totalFame()*K.fameToVisitor),capacity());  // vd: 10 fame × 0.5 = 5 khách (giới hạn sức chứa)
+const goldPerSec=()=>Math.max(1,Math.round(visitors()*K.spendPerVisitor*(1+K.attractRev*st.built.length)));
+const unlockCost=k=>roundNice(500*Math.pow(1.06,AN[k].lv-1));
+const buyMoreCost=k=>Math.round(AN[k].appeal*K.costBuy*st.owned[k].count)+50;
+const upgradeCost=k=>Math.round(AN[k].appeal*K.costUp*st.owned[k].encLv)+300;
+const capOf=k=>2+(st.owned[k].encLv-1);
+// ===== XP FAUCETS =====
+const xpPerDay=()=>{const lv=levelFromXp(st.xp);return K.eduShare*P(lv)*Math.min(1,happyMult())+K.dailyShare*P(lv)+K.showShare*P(lv)+owned().length*5*K.careXp+(K.weeklyShare*P(lv))/7+(K.eventMult*P(lv))/30;};
+// ===== TIME LOOP =====
+let lastT=performance.now(),coinT=0;
+function frame(now){
+  const dt=(now-lastT)/1000;lastT=now;
+  if(st.speed>0 && levelFromXp(st.xp)<MAX){
+    const dGameSec=dt*st.speed;            // st.speed = game-seconds per real-second
+    advanceSeconds(dGameSec);
+  }
+  // smooth gold display
+  disp.gold += (st.gold-disp.gold)*Math.min(1,dt*6);
+  document.getElementById('hgold').textContent=fmt(Math.round(disp.gold));
+  // coin spawn juice
+  coinT+=dt; if(coinT>1.6 && st.speed>0){coinT=0; spawnCoin();}
+  requestAnimationFrame(frame);
+}
+function advanceSeconds(sec){
+  const beforeDay=Math.floor(st.t/86400);
+  const auto = true; // active session keeps animals tended at a low rate
+  // continuous accrual
+  st.gold += goldPerSec()*sec;
+  st.xp   += (K.eduShare*P(levelFromXp(st.xp))*Math.min(1,happyMult())+K.dailyShare*P(levelFromXp(st.xp))+K.showShare*P(levelFromXp(st.xp))+owned().length*5*K.careXp)/86400*sec;
+  // decay (gentle, daily-based) — animals slowly get hungry; auto-tended lightly so not punishing
+  owned().forEach(k=>{const m=st.owned[k].m;const d=K.decayPerDay/86400*sec;m.hunger=Math.max(20,m.hunger-d);m.thirst=Math.max(20,m.thirst-d*1.1);m.clean=Math.max(25,m.clean-d*0.9);m.happy=Math.max(30,m.happy-d*0.6);});
+  st.t+=sec;
+  const afterDay=Math.floor(st.t/86400);
+  if(afterDay>beforeDay){for(let d=beforeDay+1;d<=afterDay;d++)onDay(d);}
+  const lv=levelFromXp(st.xp);
+  if(lv>lastLv){onLevelUp(lastLv,lv);lastLv=lv;}
+  rerenderLight();
+}
+function onDay(d){
+  // daily care ritual (engaged player logs in & cares) — keeps happiness up across days
+  owned().forEach(k=>{const m=st.owned[k].m;m.hunger=100;m.thirst=100;m.clean=100;m.happy=100;m.trust=Math.min(100,m.trust+4);});
+  const lv=levelFromXp(st.xp);
+  st.xp+=K.dailyShare*P(lv)+(d%7===0?K.weeklyShare*P(lv):0)+(d%30===0?K.eventMult*P(lv):0);
+  autoManage();
+}
+function autoManage(){
+  // light auto-spend so the zoo visibly grows during fast-forward (engaged play proxy)
+  const lv=levelFromXp(st.xp);
+  for(const a of ANIMALS) if(a.lv<=lv && !st.owned[a.key]){const c=unlockCost(a.key);if(st.gold>=c){st.gold-=c;st.owned[a.key]={count:1,encLv:1,enrLv:0,m:fm()};st.xp+=K.adoptXp;}}
+  for(const at of ATTRACTIONS) if(at.lv<=lv && !st.built.includes(at.key) && st.gold>=at.cost*1.5){st.gold-=at.cost;st.built.push(at.key);}
+  let ops=4;while(ops-->0){let best=null,bc=Infinity,bt;for(const k of owned()){const o=st.owned[k];if(o.count<capOf(k)){const c=buyMoreCost(k);if(c<bc){bc=c;best=k;bt='b';}}if(o.encLv<5){const c=upgradeCost(k);if(c<bc){bc=c;best=k;bt='u';}}}if(best&&st.gold>=bc*3){st.gold-=bc;if(bt==='b')st.owned[best].count++;else st.owned[best].encLv++;}else break;}
+}
+function jump(days){const target=st.t+days*86400;while(st.t<target&&levelFromXp(st.xp)<MAX){const step=Math.min(3600,target-st.t);advanceSeconds(step);}toast('⏩ +'+days+' ngày · 🪙 '+fmt(st.gold));renderAll();save();}
+function onLevelUp(from,to){const el=document.getElementById('levelup');el.textContent='🆙 Lv '+to;el.classList.remove('show');void el.offsetWidth;el.classList.add('show');beep();
+  // unlock toast for newly available species
+  ANIMALS.forEach(a=>{if(a.lv>from&&a.lv<=to)toast('🔓 Mở khoá: '+a.sp+' (Lv'+a.lv+')');});
+}
+// ===== RENDER =====
+const $=id=>document.getElementById(id);
+function fmt(n){n=Math.round(n);const s=n<0?'-':'';n=Math.abs(n);if(n>=1e9)return s+(n/1e9).toFixed(2)+'B';if(n>=1e6)return s+(n/1e6).toFixed(2)+'M';if(n>=1e3)return s+(n/1e3).toFixed(1)+'K';return s+n;}
+function renderHUD(){const lv=levelFromXp(st.xp);$('hgems').textContent=st.gems;
+  if(lv>=MAX){$('hxpfill').style.width='100%';$('hxplbl').textContent='Lv 92 · MAX';}
+  else{const c=LX[lv-1],nx=LX[lv];$('hxpfill').style.width=Math.max(0,Math.min(100,(st.xp-c)/(nx-c)*100)).toFixed(1)+'%';$('hxplbl').textContent='Lv '+lv+' · '+fmt(st.xp)+'/'+fmt(nx)+' XP';}
+  const dem=Math.round(totalFame()*K.fameToVisitor),cap=capacity();
+  $('hfameline').innerHTML='🌟 <b>'+fmt(totalFame())+'</b> nổi tiếng × '+K.fameToVisitor+' → 👥 <b>'+fmt(Math.min(dem,cap))+'</b> khách'+(dem>cap?' · ⚠️ đầy sức chứa '+fmt(cap):'');}
+let lastVisN=-1;
+function renderVisitors(){const v=visitors();$('vcount').textContent=fmt(v);const n=Math.max(0,Math.min(11,Math.round(v/Math.max(1,v<40?6:v/9))));
+  if(n===lastVisN)return; lastVisN=n;   // only rebuild sprites when the count bucket changes (don't restart walk anim every frame)
+  let h='';for(let i=0;i<n;i++){const e=VEMOJI[i%VEMOJI.length];const dur=(7+Math.random()*5).toFixed(1);const delay=(-Math.random()*8).toFixed(1);h+='<span class="visitor" style="animation-duration:'+dur+'s;animation-delay:'+delay+'s">'+e+'</span>';}$('path').innerHTML=h;}
+function renderPlots(){let h='';owned().forEach(k=>{const o=st.owned[k];const happy=o.m.happy;const mood=happy>=70?'😊':happy>=45?'🙂':'😟';const alert=(o.m.hunger<35||o.m.thirst<35||o.m.clean<35);
+  h+='<div class="plot '+(alert?'alert':'')+'" data-care="'+k+'"><div class="mood">'+mood+'</div><div class="cnt">×'+o.count+'</div>'+sprite(k)+'<div class="nm">'+AN[k].nm+'</div><div class="mt">'+AN[k].sp+' · 🌟'+fmt(appealOf(k))+'</div></div>';});
+  $('plots').innerHTML=h;}
+function rerenderLight(){renderHUD();renderVisitors();updateStrip();if($('care').classList.contains('open'))updateCareBars();}
+function renderAll(){renderHUD();renderVisitors();renderPlots();updateStrip();}
+function spawnCoin(){const sc=$('scene');const c=document.createElement('div');c.className='coin';c.textContent='🪙';c.style.left=(20+Math.random()*70)+'%';c.style.top=(40+Math.random()*30)+'%';
+  c.onclick=()=>{const b=Math.round(goldPerSec()*30)+20;st.gold+=b;disp.gold+=b;toast('🪙 +'+fmt(b));c.remove();};sc.appendChild(c);setTimeout(()=>c.remove(),2600);}
+// care modal
+function renderCare(){const o=st.owned[sel];const a=AN[sel];
+  const sb=(k,l,v,col)=>'<div class="statline"><div class="lbl">'+l+'</div><div class="bar"><i data-bar="'+k+'" style="width:'+v+'%;background:'+col+'"></i></div><div class="vv" data-vv="'+k+'">'+Math.round(v)+'</div></div>';
+  $('care-body').innerHTML='<div class="mhead">'+sprite(sel,'big')+'<div><b style="font-size:18px;color:var(--ink)">'+a.nm+'</b><div style="font-size:12px;color:#8a8472">'+a.sp+' · ×'+o.count+' · chuồng Lv'+o.encLv+' · 🌟'+fmt(appealOf(sel))+'</div></div><button class="x" style="margin-left:auto" data-careclose>✕</button></div>'
+   +sb('hunger','🍖 Đói',o.m.hunger,'#EF4B5C')+sb('thirst','💧 Khát',o.m.thirst,'#34B6F0')+sb('clean','🫧 Sạch',o.m.clean,'#36C98A')+sb('happy','😊 Vui',o.m.happy,'#FFB22E')+sb('trust','❤️ Tin',o.m.trust,'#FF7FA8')
+   +'<div class="acts">'
+   +'<button class="abtn" data-act="feed"><span class="e">🍖</span>Cho ăn<span class="c">40🪙</span></button>'
+   +'<button class="abtn" data-act="water"><span class="e">💧</span>Uống<span class="c">10🪙</span></button>'
+   +'<button class="abtn" data-act="clean"><span class="e">🫧</span>Tắm<span class="c">20🪙</span></button>'
+   +'<button class="abtn play" data-act="play"><span class="e">🎾</span>Chơi<span class="c">free</span></button>'
+   +'<button class="abtn" data-act="heal"><span class="e">➕</span>Khám<span class="c">30🪙</span></button>'
+   +'<button class="abtn" data-act="upg" '+(o.encLv>=5?'disabled':'')+'><span class="e">🏗️</span>Nâng cấp<span class="c">'+fmt(upgradeCost(sel))+'🪙</span></button>'
+   +'</div>';}
+function updateCareBars(){const o=st.owned[sel];if(!o)return;const ks=['hunger','thirst','clean','happy','trust'];
+  ks.forEach(k=>{const bar=document.querySelector('[data-bar="'+k+'"]');const vv=document.querySelector('[data-vv="'+k+'"]');if(bar)bar.style.width=o.m[k]+'%';if(vv)vv.textContent=Math.round(o.m[k]);});}
+function openCare(k){sel=k;$('care').classList.add('open');renderCare();if(st.tut===1)tutStep(2);}
+function closeCare(){$('care').classList.remove('open');if(st.tut===3)tutStep(4);}
+function doAct(type){const o=st.owned[sel];
+  if(type==='feed'){if(o.m.hunger>=98)return toast('Đói đã đầy');if(st.gold<40)return toast('Cần 40🪙');st.gold-=40;o.m.hunger=100;st.xp+=K.careXp;}
+  else if(type==='water'){if(o.m.thirst>=98)return toast('Đã đủ nước');if(st.gold<10)return toast('Cần 10🪙');st.gold-=10;o.m.thirst=100;st.xp+=K.careXp;}
+  else if(type==='clean'){if(o.m.clean>=98)return toast('Đã sạch');if(st.gold<20)return toast('Cần 20🪙');st.gold-=20;o.m.clean=100;st.xp+=K.careXp;}
+  else if(type==='play'){if(o.m.happy>=98)return toast('Đã vui');o.m.happy=100;o.m.trust=Math.min(100,o.m.trust+4);st.xp+=K.careXp;toast('🎾 '+AN[sel].nm+' rất vui! +'+K.careXp+' XP');if(st.tut===2)tutStep(3);}
+  else if(type==='heal'){if(st.gold<30)return toast('Cần 30🪙');st.gold-=30;o.m.happy=Math.min(100,o.m.happy+40);o.m.trust=Math.min(100,o.m.trust+2);st.xp+=K.careXp;}
+  else if(type==='upg'){if(o.encLv>=5)return toast('Tối đa Lv5');const c=upgradeCost(sel);if(st.gold<c)return toast('Cần '+fmt(c)+'🪙');st.gold-=c;o.encLv++;toast('🏗️ Chuồng → Lv'+o.encLv);}
+  bump(type);disp.gold=st.gold;renderCare();renderAll();save();
+}
+// animals sheet
+function renderAnimals(){const lv=levelFromXp(st.xp);let h='<div style="font-size:12px;color:#8a8472;margin-bottom:8px">Thú mở khoá khi Cấp Sở thú tăng — không bao giờ mua bằng 💎.</div>';
+  ANIMALS.forEach(a=>{const own=st.owned[a.key];const un=lv>=a.lv;
+    if(own){h+='<div class="row">'+sprite(a.key,'ic')+'<div class="info"><b>'+a.nm+'</b> <span class="s">'+a.sp+'</span><div class="s">×'+own.count+'/'+capOf(a.key)+' · 🌟'+fmt(appealOf(a.key))+'</div></div>'+(own.count<capOf(a.key)?'<button class="cta buy" data-buymore="'+a.key+'" '+(st.gold>=buyMoreCost(a.key)?'':'disabled')+'>+1 · '+fmt(buyMoreCost(a.key))+'🪙</button>':'<span class="s">đầy chuồng</span>')+'</div>';}
+    else{h+='<div class="row '+(un?'':'lock')+'">'+sprite(a.key,'ic')+'<div class="info"><b>'+a.sp+'</b><div class="s">'+(un?'🌟'+a.appeal+' nổi tiếng':'cần Cấp '+a.lv)+'</div></div>'+(un?'<button class="cta buy" data-adopt="'+a.key+'" '+(st.gold>=unlockCost(a.key)?'':'disabled')+'>Nhận nuôi · '+fmt(unlockCost(a.key))+'🪙</button>':'<span class="s">🔒 Lv'+a.lv+'</span>')+'</div>';}});
+  $('animals-body').innerHTML=h;}
+function renderBuild(){const lv=levelFromXp(st.xp);let h='<div style="font-size:12px;color:#8a8472;margin-bottom:8px">Tiện ích tăng khách & doanh thu.</div>';
+  ATTRACTIONS.forEach(at=>{const built=st.built.includes(at.key);const un=lv>=at.lv;
+    h+='<div class="row '+(un||built?'':'lock')+'"><div class="ic">'+at.ic+'</div><div class="info"><b>'+at.nm+'</b><div class="s">'+(built?'✓ Đã xây':un?'🪙'+fmt(at.cost):'cần Cấp '+at.lv)+'</div></div>'+(built?'<span class="s">✓</span>':un?'<button class="cta up" data-build="'+at.key+'" '+(st.gold>=at.cost?'':'disabled')+'>Xây</button>':'<span class="s">🔒 Lv'+at.lv+'</span>')+'</div>';});
+  $('build-body').innerHTML=h;}
+// ===== QUESTS =====
+function qprog(k){if(k==='level')return levelFromXp(st.xp);if(k==='owned')return owned().length;return (st.counts&&st.counts[k])||0;}
+function qdone(q){return q.o.every(o=>qprog(o.k)>=o.n);}
+function curQuest(){return st.questIdx<QUESTS.length?QUESTS[st.questIdx]:null;}
+function bump(k){if(st.counts){st.counts[k]=(st.counts[k]||0)+1;}}
+function updateStrip(){const el=$('queststrip');const q=curQuest();
+  if(!q){el.classList.remove('done');el.innerHTML='📋 Đã xong nhiệm vụ đầu game — dùng 🛠️ ⏩ để phát triển dài hạn';return;}
+  const done=qdone(q);el.classList.toggle('done',done);
+  const next=q.o.find(o=>qprog(o.k)<o.n)||q.o[q.o.length-1];
+  el.innerHTML='📋 <b>'+q.t+'</b> · '+next.l+'<span class="pg">'+Math.min(qprog(next.k),next.n)+'/'+next.n+'</span>'+(done?' · 🎁 NHẬN ▸':' ▸');}
+function renderQuest(){const q=curQuest();let h='<div class="mhead"><b style="font-size:18px;color:var(--ink)">📋 Nhiệm vụ</b><button class="x" style="margin-left:auto" data-questclose>✕</button></div>';
+  if(!q){h+='<div style="padding:16px;text-align:center;color:#8a8472;line-height:1.6">🎉 Bạn đã hoàn thành chuỗi nhiệm vụ đầu game!<br>Giờ sở thú tự phát triển — mở 🛠️ chọn ⏩ để xem tiến trình tới Lv92 (~6 tháng).</div>';}
+  else{const done=qdone(q);h+='<div style="font-weight:800;color:var(--ink);margin:2px 0 8px">Chương '+(st.questIdx+1)+'/'+QUESTS.length+': '+q.t+'</div>';
+    q.o.forEach(o=>{const c=Math.min(qprog(o.k),o.n),ok=c>=o.n;h+='<div class="kvq"><span>'+(ok?'✅':'⬜')+' '+o.l+'</span><b>'+c+'/'+o.n+'</b></div>';});
+    h+='<div style="font-size:12.5px;color:#8a8472;margin:10px 0 6px">🎁 Thưởng: <b>+'+q.xp+' XP</b> · <b>+'+fmt(q.gold)+' 🪙</b></div>';
+    h+='<button class="cta buy" style="width:100%;padding:11px" data-claimquest '+(done?'':'disabled')+'>'+(done?'🏅 Nhận thưởng':'Hoàn thành mục tiêu trước')+'</button>';}
+  $('quest-body').innerHTML=h;}
+function claimQuest(){const q=curQuest();if(!q||!qdone(q))return;st.gold+=q.gold;disp.gold=st.gold;st.xp+=q.xp;st.questIdx++;toast('🏅 '+q.t+' ✓ · +'+q.xp+' XP, +'+fmt(q.gold)+'🪙');const lv=levelFromXp(st.xp);if(lv>lastLv){onLevelUp(lastLv,lv);lastLv=lv;}renderQuest();renderAll();save();}
+// ===== TUTORIAL =====
+const TUT=[
+ null,
+ {h:'Chạm vào Clover 🐰',p:'Trên sân sở thú, chạm vào ô con Thỏ để mở bảng chăm sóc.'},
+ {h:'Chơi với Clover 🎾',p:'Bấm nút 🎾 Chơi — miễn phí, làm bé vui hơn. Thú vui hút nhiều khách hơn.'},
+ {h:'Xem sở thú kiếm tiền 🪙',p:'Đóng bảng lại. Nhìn 🪙 ở trên tăng dần — khách trả tiền tự động, kể cả khi bạn rời đi.'},
+ {h:'Nhận nuôi con thứ 2 🐾',p:'Mở tab 🐾 Thú ở dưới, nhận nuôi một loài đã mở khoá để sở thú đông vui hơn.'},
+ {h:'Dùng công cụ ⏩ thời gian',p:'Bấm nút 🛠️ (góc phải) → chọn tốc độ nhanh hoặc "+1 tháng" để xem sở thú lớn lên qua nhiều ngày. Mục tiêu: đạt Lv92 trong ~6 tháng!'},
+ {h:'Sẵn sàng rồi! 🎉',p:'Bạn đã nắm vòng lặp: chăm sóc → khách → vàng → nâng cấp & mở khoá. Chúc vui!'},
+];
+function tutStep(n){st.tut=n;const t=$('tut');document.querySelectorAll('.spot').forEach(e=>e.classList.remove('spot'));
+  if(n<=0||n>=TUT.length){t.classList.remove('show');st.tut=0;save();return;}
+  const step=TUT[n];$('tut-h').textContent=step.h;$('tut-p').textContent=step.p;t.classList.add('show');
+  // highlight targets
+  if(n===1){const p=document.querySelector('[data-care="rabbit"]');if(p)p.classList.add('spot');}
+  if(n===2){const pb=document.querySelector('[data-act="play"]');if(pb)pb.classList.add('spot');}
+  if(n===4){document.querySelector('[data-tab="animals"]').classList.add('spot');}
+  if(n===5){$('devbtn').classList.add('spot');}
+  // "Tiếp" always available so the user can never get stuck
+  $('tut-next').textContent=(n>=TUT.length-1)?'Xong ✓':'Tiếp ▶';
+  save();
+}
+// ===== WIRE =====
+$('wstart').onclick=()=>{$('welcome').style.display='none';tutStep(1);};
+$('tut-skip').onclick=()=>{tutStep(0);toast('Đã bỏ qua hướng dẫn — xem lại trong 🛠️');};
+$('tut-next').onclick=()=>{const n=st.tut+1;tutStep(n>=TUT.length?0:n);};
+// scene tap (care)
+$('plots').addEventListener('click',e=>{const p=e.target.closest('[data-care]');if(p)openCare(p.dataset.care);});
+// quests
+$('queststrip').addEventListener('click',()=>{renderQuest();$('questmodal').classList.add('open');});
+$('questmodal').addEventListener('click',e=>{if(e.target.id==='questmodal'||e.target.closest('[data-questclose]')){$('questmodal').classList.remove('open');return;}if(e.target.closest('[data-claimquest]'))claimQuest();});
+$('care').addEventListener('click',e=>{if(e.target.id==='care'){closeCare();return;}const c=e.target.closest('[data-careclose]');if(c){closeCare();return;}const b=e.target.closest('[data-act]');if(b)doAct(b.dataset.act);});
+// tabs / sheets
+$('tabbar').addEventListener('click',e=>{const t=e.target.closest('[data-tab]');if(!t)return;const tab=t.dataset.tab;
+  if(tab==='animals'){renderAnimals();$('sheet-animals').classList.add('open');if(st.tut===4){/* advance after adopt */}}
+  else if(tab==='build'){renderBuild();$('sheet-build').classList.add('open');}
+});
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('open')));
+$('animals-body').addEventListener('click',e=>{const a=e.target.closest('[data-adopt]');const m=e.target.closest('[data-buymore]');
+  if(a){const k=a.dataset.adopt;const c=unlockCost(k);if(st.gold<c)return toast('Cần '+fmt(c)+'🪙');st.gold-=c;disp.gold=st.gold;st.owned[k]={count:1,encLv:1,enrLv:0,m:fm()};st.xp+=K.adoptXp;bump('adopt');toast('🎉 Nhận nuôi '+AN[k].nm+'!');renderAnimals();renderAll();save();if(st.tut===4)tutStep(5);}
+  if(m){const k=m.dataset.buymore;const c=buyMoreCost(k);if(st.gold<c)return toast('Cần '+fmt(c)+'🪙');if(st.owned[k].count>=capOf(k))return toast('Đầy chuồng — nâng cấp trước');st.gold-=c;disp.gold=st.gold;st.owned[k].count++;toast('🐾 +1 '+AN[k].nm);renderAnimals();renderAll();save();}
+});
+$('build-body').addEventListener('click',e=>{const b=e.target.closest('[data-build]');if(!b)return;const at=ATTRACTIONS.find(x=>x.key===b.dataset.build);if(st.gold<at.cost)return toast('Cần '+fmt(at.cost)+'🪙');st.gold-=at.cost;disp.gold=st.gold;st.built.push(at.key);bump('build');toast(at.ic+' Đã xây '+at.nm+'!');renderBuild();renderAll();save();});
+// dev panel
+const SPEEDS=[{l:'⏸ Dừng',v:0},{l:'🐢 Chậm (real)',v:1},{l:'▶ Thường ~1 ngày/phút',v:1440},{l:'⏩ Nhanh 1 ngày/giây',v:86400},{l:'⏩⏩ 1 tuần/giây',v:604800}];
+function renderSpeeds(){$('speeds').innerHTML=SPEEDS.map(s=>'<button class="dbtn '+(st.speed===s.v?'on':'')+'" data-spd="'+s.v+'">'+s.l+'</button>').join('');}
+$('devbtn').onclick=()=>{if(st.tut===5)tutStep(6);renderSpeeds();$('devpanel').classList.add('open');};
+$('devclose').onclick=()=>$('devpanel').classList.remove('open');
+$('devpanel').addEventListener('click',e=>{
+  if(e.target.id==='devpanel'){$('devpanel').classList.remove('open');return;}
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.spd!==undefined){st.speed=+b.dataset.spd;renderSpeeds();save();toast('Tốc độ '+(b.textContent));}
+  else if(b.dataset.jump){jump(+b.dataset.jump);renderSpeeds();}
+  else if(b.dataset.gold){st.gold+=+b.dataset.gold;disp.gold=st.gold;renderHUD();toast('+'+fmt(+b.dataset.gold)+' 🪙');save();}
+  else if(b.dataset.gems){st.gems+=+b.dataset.gems;renderHUD();toast('+'+b.dataset.gems+' 💎');save();}
+  else if(b.dataset.lvl){const lv=Math.min(MAX,levelFromXp(st.xp)+ +b.dataset.lvl);st.xp=LX[lv-1];onLevelUp(lastLv,lv);lastLv=lv;renderAll();save();}
+  else if(b.id==='unlockall'){const lv=levelFromXp(st.xp);ANIMALS.forEach(a=>{if(a.lv<=lv&&!st.owned[a.key])st.owned[a.key]={count:1,encLv:1,enrLv:0,m:fm()};});renderAll();save();toast('Đã mở khoá thú hiện có');}
+  else if(b.id==='replaytut'){$('devpanel').classList.remove('open');tutStep(1);}
+  else if(b.id==='resetgame'){if(confirm('Reset toàn bộ?')){localStorage.removeItem('awzgame');newGame();$('devpanel').classList.remove('open');renderAll();$('welcome').style.display='flex';}}
+});
+// tiny beep
+let actx;function beep(){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.connect(g);g.connect(actx.destination);o.frequency.value=880;g.gain.value=.06;o.start();g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+.25);o.stop(actx.currentTime+.26);}catch(e){}}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1300);}
+// ===== BOOT =====
+if(!load()){newGame();$('welcome').style.display='flex';}
+else{$('welcome').style.display='none';if(st.speed==null||st.speed===1)st.speed=1440;if(st.tut>0)setTimeout(()=>tutStep(st.tut),300);}
+renderAll();renderSpeeds();
+requestAnimationFrame(frame);
+setInterval(save,5000);
+</script>
+</body>
+</html>
