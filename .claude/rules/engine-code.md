@@ -1,6 +1,6 @@
 ---
 paths:
-  - "src/core/**"
+  - "Assets/Scripts/Runtime/**"
 ---
 
 # Engine Code Rules

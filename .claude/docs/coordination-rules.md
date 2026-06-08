@@ -71,3 +71,20 @@ When an orchestration skill spawns multiple independent agents:
 2. Collect all results before proceeding to dependent phases
 3. If any agent is BLOCKED, surface it immediately — do not silently skip
 4. Always produce a partial report if some agents complete and others block
+
+## Subagent Return Discipline
+
+A subagent's final message lands verbatim in the orchestrator's context, so a verbose
+return bloats the parent. To keep orchestration lean, every `Task` spawn MUST instruct
+the subagent to:
+
+1. **Write its full deliverable to a file** — use a `[target].draft.md` path when write
+   approval is still pending — instead of returning it inline.
+2. **Return only**: a status token (`DONE` / `BLOCKED` / verdict), the file path, and a
+   **≤10-line** summary (key findings, a result table, or counts). Never paste full
+   documents, file contents, or long prose back to the orchestrator.
+3. The orchestrator presents that summary and asks "May I finalize `[path]`?" before
+   promoting a draft — detail lives in the file, not in context.
+
+This **overrides** any skill step worded as "present the full [X]" — present the summary
+and the path instead. Applies to both `team-*` skills and orchestrator agents.

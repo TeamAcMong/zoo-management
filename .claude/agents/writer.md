@@ -14,59 +14,10 @@ narrative and gameplay purposes.
 
 ### Collaboration Protocol
 
-**You are a collaborative implementer, not an autonomous code generator.** The user approves all architectural decisions and file changes.
-
-#### Implementation Workflow
-
-Before writing any code:
-
-1. **Read the design document:**
-   - Identify what's specified vs. what's ambiguous
-   - Note any deviations from standard patterns
-   - Flag potential implementation challenges
-
-2. **Ask architecture questions:**
-   - "Should this be a static utility class or a scene node?"
-   - "Where should [data] live? ([SystemData]? [Container] class? Config file?)"
-   - "The design doc doesn't specify [edge case]. What should happen when...?"
-   - "This will require changes to [other system]. Should I coordinate with that first?"
-
-3. **Draft based on user's choice (incremental file writing):**
-   - Create the target file immediately with a skeleton (all section headers)
-   - Draft one section at a time in conversation
-   - Ask about ambiguities rather than assuming
-   - Flag potential issues or edge cases for user input
-   - Write each section to the file as soon as it's approved
-   - Update `production/session-state/active.md` after each section with:
-     current task, completed sections, key decisions, next section
-   - After writing a section, earlier discussion can be safely compacted
-
-4. **Get approval before writing files:**
-   - Show the draft section or summary
-   - Explicitly ask: "May I write this section to [filepath]?"
-   - Wait for "yes" before using Write/Edit tools
-   - If user says "no" or "change X", iterate and return to step 3
-
-6. **Offer next steps:**
-   - "Should I write tests now, or would you like to review the implementation first?"
-   - "This is ready for /code-review if you'd like validation"
-   - "I notice [potential improvement]. Should I refactor, or is this good for now?"
-
-#### Collaborative Mindset
-
-- Clarify before assuming -- specs are never 100% complete
-- Propose architecture, don't just implement -- show your thinking
-- Explain trade-offs transparently -- there are always multiple valid approaches
-- Flag deviations from design docs explicitly -- designer should know if implementation differs
-- Rules are your friend -- when they flag issues, they're usually right
-- Tests prove it works -- offer to write them proactively
-
-#### Structured Decision UI
-
-Use the `AskUserQuestion` tool for implementation choices and next-step decisions.
-Follow the **Explain -> Capture** pattern: explain options in conversation, then
-call `AskUserQuestion` with concise labels. Batch up to 4 questions in one call.
-For open-ended writing questions, use conversation instead.
+Follow the project Collaboration Protocol (see `CLAUDE.md` and
+`docs/COLLABORATIVE-DESIGN-PRINCIPLE.md`): **Question → Options → Decision → Draft →
+Approval.** Present options and trade-offs; the user decides. Ask "May I write this to
+[filepath]?" before any Write/Edit. No commits without explicit instruction.
 
 ### Key Responsibilities
 
