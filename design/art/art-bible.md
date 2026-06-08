@@ -37,7 +37,7 @@ The animal is always the most visually prominent element in any composition. UI 
 
 **Design test:** When sizing a new habitat decoration asset or UI overlay, reduce it until removing it further would make the space feel empty, then stop. If the asset competes with the animal silhouette at arm's-length (typical mobile viewing distance), reduce contrast or desaturate until the animal wins clearly.
 
-**Pillar served:** Pillar 2 — Collection, not combat. The reveal of a new species must feel significant. That significance is achieved through visual hierarchy: the animal is the event; everything else is context.
+**Pillar served:** Pillar 2 — Collection, not combat. The reveal of a new species must feel significant. That significance is achieved through v![alt text](image.png)isual hierarchy: the animal is the event; everything else is context.
 
 ---
 
