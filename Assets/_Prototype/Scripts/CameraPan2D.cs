@@ -12,11 +12,16 @@ namespace AWZ.Proto
         [Tooltip("Half size of the map in world units (width/2, height/2).")]
         public Vector2 mapHalf = new Vector2(3.84f, 6.72f);
 
+        [Tooltip("Zoom-in factor. 1 = whole map fits (no panning). >1 zooms in so the map is " +
+                 "larger than the screen and can be dragged around. 1.6 ≈ shows ~60% per axis.")]
+        [Min(1f)] public float zoom = 1.6f;
+
         private Camera _cam;
         private Vector3 _lastMouse;
         private bool _dragging;
         private int _lastScreenW;
         private int _lastScreenH;
+        private float _lastAspect;
 
         private void Awake()
         {
@@ -26,27 +31,33 @@ namespace AWZ.Proto
         }
 
         /// <summary>
-        /// Contain-fit: pick the smallest orthographic size that still shows the WHOLE map
-        /// on the current screen aspect, so the entire zoo is visible on every device
-        /// (portrait phone, tablet, WebGL window) instead of an aspect-dependent crop.
+        /// Contain-fit (the orthographic size that shows the WHOLE map on the current aspect),
+        /// then divided by <see cref="zoom"/> to zoom in. At zoom &gt; 1 the view is smaller than
+        /// the map on both axes, so <see cref="Clamp"/> leaves room to drag the camera around —
+        /// which is what makes the map pannable (at zoom = 1 there is no slack and it stays put).
         /// </summary>
         private void ApplyFit()
         {
             if (_cam == null || !_cam.orthographic) return;
             float byHeight = mapHalf.y;
             float byWidth  = mapHalf.x / Mathf.Max(0.0001f, _cam.aspect);
-            _cam.orthographicSize = Mathf.Max(byHeight, byWidth);
+            float containSize = Mathf.Max(byHeight, byWidth);
+            _cam.orthographicSize = containSize / Mathf.Max(1f, zoom);
         }
 
         private void Update()
         {
             if (_cam == null) return;
 
-            // Re-fit only when the screen size actually changes (rotation / resize / window).
-            if (Screen.width != _lastScreenW || Screen.height != _lastScreenH)
+            // Re-fit when the screen size OR the camera aspect changes. Aspect changes when the
+            // UI frames the map into a sub-rect via Camera.rect (GameApp.UpdateMapViewport), so
+            // we must re-fit then too — not only on rotation/resize.
+            if (Screen.width != _lastScreenW || Screen.height != _lastScreenH
+                || !Mathf.Approximately(_cam.aspect, _lastAspect))
             {
                 _lastScreenW = Screen.width;
                 _lastScreenH = Screen.height;
+                _lastAspect  = _cam.aspect;
                 ApplyFit();
                 Clamp();
             }

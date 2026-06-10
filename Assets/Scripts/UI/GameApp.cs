@@ -44,7 +44,13 @@ namespace AWZ.UI
         private UIDocument    _document;
         private VisualElement _root;
         private VisualElement _hudBar;
+        private VisualElement _navBar;        // bottom tab bar (for map viewport framing)
         private ScrollView    _bodyScroll;   // single shared content area
+        private Camera        _mapCam;        // scene camera rendering the world map
+
+        // ── Splash / loading sequence ────────────────────────────────────────
+        private VisualElement               _splash;
+        private IVisualElementScheduledItem _splashAnim;
 
         // HUD labels (cached to avoid per-frame Q<>)
         private Label         _lblGold;
@@ -64,6 +70,17 @@ namespace AWZ.UI
 
         // ── Shop one-per-session daily gift ──────────────────────────────────
         private bool _dailyGiftClaimed;
+
+        // ── Animal focus (tapping a world animal jumps to its Animals-tab card) ──
+        private string        _focusSpecies;   // one-shot: which card to scroll to after a tap
+        private VisualElement _focusTarget;    // captured during the Animals-tab build
+
+        // ── Click-race guard ─────────────────────────────────────────────────
+        // The periodic refresh rebuilds the whole tab (destroying its buttons). If that
+        // fires between a tap's PointerDown and PointerUp, the Button's Clickable never
+        // completes and the tap is silently lost. We suppress the rebuild while a pointer
+        // is held so an in-flight tap always lands.
+        private bool _pointerHeld;
 
         // Theme colours (light / warm palette) ──────────────────────────────
         private static readonly Color ColBg          = new Color(0.984f, 0.953f, 0.902f, 1f);   // #FBF3E6
@@ -97,6 +114,10 @@ namespace AWZ.UI
         private static readonly Color ColBarClean    = new Color(0.260f, 0.800f, 0.400f, 1f);
         private static readonly Color ColBarHappy    = new Color(0.988f, 0.357f, 0.600f, 1f);
         private static readonly Color ColBarTrack    = new Color(0.878f, 0.878f, 0.878f, 1f);
+        // Mono-icon accents: a single flat tone per currency (readable, not "màu mè").
+        private static readonly Color ColCoinIcon    = new Color(0.949f, 0.698f, 0.157f, 1f);  // gold
+        private static readonly Color ColGemIcon     = new Color(0.298f, 0.659f, 0.859f, 1f);  // teal-blue
+        private static readonly Color ColStarIcon    = new Color(0.965f, 0.741f, 0.208f, 1f);  // amber
 
         // ── Lifecycle ────────────────────────────────────────────────────────
         private void Awake()
@@ -105,6 +126,10 @@ namespace AWZ.UI
             LoadTextureCache();
             BuildUI();
         }
+
+        // Paired subscribe/unsubscribe (Rule 5). World-space animals publish taps here.
+        private void OnEnable()  => WorldTapBus.AnimalTapped += OnAnimalTapped;
+        private void OnDisable() => WorldTapBus.AnimalTapped -= OnAnimalTapped;
 
         private void Update()
         {
@@ -152,6 +177,7 @@ namespace AWZ.UI
             _collection  = new CollectionService(_state, _currency, _level,
                                DefaultAnimalData.AppealOf, DefaultAnimalData.UnlockLevelOf);
 
+            ZooRosterBus.Publish(_state.OwnedSpecies); // drive the world map from owned species
             Debug.Log("[GameApp] Domain built. UI Toolkit runtime UI active.");
         }
 
@@ -186,16 +212,8 @@ namespace AWZ.UI
                     Debug.LogWarning($"[GameApp] Missing animal texture: Art/Animals/{k}");
             }
 
-            // UI icon sprites
-            string[] iconNames = { "coin", "gem", "star", "feed", "water", "clean", "pet" };
-            foreach (string n in iconNames)
-            {
-                var tex = Resources.Load<Texture2D>($"Art/UI/{n}");
-                if (tex != null)
-                    _texCache[$"icon:{n}"] = tex;
-                else
-                    Debug.LogWarning($"[GameApp] Missing UI icon texture: Art/UI/{n}");
-            }
+            // UI feature icons are now drawn procedurally (single-colour vector glyphs) via
+            // AwzIcons/Painter2D — no PNG icon sprites are loaded any more.
 
             // Decor sprites for the zoo map (pond.png intentionally skipped — drawn as VisualElement)
             string[] decorKeys = { "tree", "evergreen", "palm", "grass", "flower", "visitor", "bench" };
@@ -330,7 +348,16 @@ namespace AWZ.UI
 
             // Safe area: inset the whole UI away from the iPhone notch / Dynamic Island,
             // Android display cutouts, and the home indicator. Recomputed on every layout.
-            _root.RegisterCallback<GeometryChangedEvent>(_ => ApplySafeArea());
+            // Also re-frame the world-map camera into the band between header and footer.
+            _root.RegisterCallback<GeometryChangedEvent>(_ => { ApplySafeArea(); UpdateMapViewport(); });
+
+            // Click-race guard: track pointer-held state at the root (TrickleDown so it sees
+            // the press before any child button). While held, the periodic refresh skips the
+            // tab rebuild so an in-flight tap is never destroyed mid-click.
+            _root.RegisterCallback<PointerDownEvent>(_   => _pointerHeld = true,  TrickleDown.TrickleDown);
+            _root.RegisterCallback<PointerUpEvent>(_     => _pointerHeld = false, TrickleDown.TrickleDown);
+            _root.RegisterCallback<PointerCancelEvent>(_ => _pointerHeld = false, TrickleDown.TrickleDown);
+            _root.RegisterCallback<PointerLeaveEvent>(_  => _pointerHeld = false, TrickleDown.TrickleDown);
 
             BuildHud();
             BuildBodyScroll();
@@ -339,6 +366,179 @@ namespace AWZ.UI
             // Render the default landing tab
             RebuildCurrentTab();
             RefreshHud();
+
+            // Splash sits on top of the freshly-built game UI and plays before reveal.
+            BuildSplash();
+        }
+
+        // ── Splash / loading sequence ────────────────────────────────────────
+
+        /// <summary>
+        /// Full-screen intro: DreamTech studio card (1.5s) → Zoo loading card with a filling
+        /// progress bar (~1.8s) → reveal the game. Built last so it overlays everything, and it
+        /// captures pointer events so nothing underneath is interactable until it finishes.
+        /// </summary>
+        private void BuildSplash()
+        {
+            _splash = new VisualElement();
+            _splash.style.position       = Position.Absolute;
+            _splash.style.left           = 0;
+            _splash.style.top            = 0;
+            _splash.style.right          = 0;
+            _splash.style.bottom         = 0;
+            _splash.style.alignItems     = Align.Center;
+            _splash.style.justifyContent = Justify.Center;
+            _root.Add(_splash);
+            _splash.BringToFront();
+
+            ShowDreamTechPage();
+            _splash.schedule.Execute(ShowZooLoadingPage).ExecuteLater(1500); // hold DreamTech 1.5s
+        }
+
+        private void ShowDreamTechPage()
+        {
+            if (_splash == null) return;
+            _splash.Clear();
+            var black = Color.black; // white line-art splash on pure black
+            _splash.style.backgroundColor = black;
+            _root.style.backgroundColor   = black; // also fill the safe-area inset under the notch
+
+            _splash.Add(MakeFullImage("Art/UI/splash_dreamtech"));
+
+            var overlay = MakeSplashOverlay(Justify.FlexStart);
+            overlay.style.paddingTop = 80;
+
+            // Title card — a faint dark plate keeps the white wordmark legible over any artwork.
+            var card = new VisualElement();
+            card.style.alignSelf               = Align.Center;
+            card.style.alignItems              = Align.Center;
+            card.style.paddingLeft             = 24;
+            card.style.paddingRight            = 24;
+            card.style.paddingTop              = 12;
+            card.style.paddingBottom           = 12;
+            card.style.backgroundColor         = new Color(0f, 0f, 0f, 0.30f);
+            card.style.borderTopLeftRadius     = 16;
+            card.style.borderTopRightRadius    = 16;
+            card.style.borderBottomLeftRadius  = 16;
+            card.style.borderBottomRightRadius = 16;
+
+            var title = new Label("DreamTech");
+            title.style.fontSize                = 48;
+            title.style.color                   = Color.white;
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            title.style.unityTextAlign          = TextAnchor.MiddleCenter;
+            title.style.letterSpacing           = 2;
+            card.Add(title);
+
+            var tagline = new Label("G A M E   S T U D I O");
+            tagline.style.fontSize                = 12;
+            tagline.style.color                   = new Color(1f, 1f, 1f, 0.85f);
+            tagline.style.unityFontStyleAndWeight = FontStyle.Bold;
+            tagline.style.marginTop               = 4;
+            tagline.style.unityTextAlign          = TextAnchor.MiddleCenter;
+            card.Add(tagline);
+
+            overlay.Add(card);
+            _splash.Add(overlay);
+        }
+
+        private void ShowZooLoadingPage()
+        {
+            if (_splash == null) return;
+            _splash.Clear();
+            var sky = new Color(0.53f, 0.78f, 0.92f, 1f);
+            _splash.style.backgroundColor = sky;
+            _root.style.backgroundColor   = sky;
+
+            _splash.Add(MakeFullImage("Art/UI/splash_zoo"));
+
+            var overlay = MakeSplashOverlay(Justify.FlexEnd);
+            overlay.style.paddingBottom = 64;
+            overlay.style.paddingLeft   = 40;
+            overlay.style.paddingRight  = 40;
+            overlay.style.alignItems    = Align.Stretch;
+
+            var loadingLbl = new Label("Loading Zoo...");
+            loadingLbl.style.fontSize                = 16;
+            loadingLbl.style.color                   = Color.white;
+            loadingLbl.style.unityFontStyleAndWeight = FontStyle.Bold;
+            loadingLbl.style.unityTextAlign          = TextAnchor.MiddleCenter;
+            loadingLbl.style.marginBottom            = 10;
+            overlay.Add(loadingLbl);
+
+            var track = new VisualElement();
+            track.style.height                  = 16;
+            track.style.backgroundColor         = new Color(1f, 1f, 1f, 0.45f);
+            track.style.borderTopLeftRadius     = 8;
+            track.style.borderTopRightRadius    = 8;
+            track.style.borderBottomLeftRadius  = 8;
+            track.style.borderBottomRightRadius = 8;
+            track.style.overflow                = Overflow.Hidden;
+
+            var fill = new VisualElement();
+            fill.style.height                  = 16;
+            fill.style.width                   = new StyleLength(new Length(0f, LengthUnit.Percent));
+            fill.style.backgroundColor         = ColNavActive;
+            fill.style.borderTopLeftRadius     = 8;
+            fill.style.borderTopRightRadius    = 8;
+            fill.style.borderBottomLeftRadius  = 8;
+            fill.style.borderBottomRightRadius = 8;
+            track.Add(fill);
+            overlay.Add(track);
+
+            _splash.Add(overlay);
+
+            // Animate the bar 0 → 100% over ~1.8s, then reveal the game.
+            const float duration = 1.8f;
+            float elapsed = 0f;
+            _splashAnim = _splash.schedule.Execute(() =>
+            {
+                elapsed += 0.03f;
+                float p = Mathf.Clamp01(elapsed / duration);
+                fill.style.width = new StyleLength(new Length(p * 100f, LengthUnit.Percent));
+                if (p >= 1f) HideSplash();
+            }).Every(30);
+        }
+
+        private void HideSplash()
+        {
+            _splashAnim?.Pause();
+            _splashAnim = null;
+            if (_splash != null) { _splash.RemoveFromHierarchy(); _splash = null; }
+            _root.style.backgroundColor = Color.clear; // restore transparency for the Zoo world view
+        }
+
+        /// <summary>Absolute full-bleed column overlay (above the splash image) for text/bar.</summary>
+        private static VisualElement MakeSplashOverlay(Justify vertical)
+        {
+            var overlay = new VisualElement();
+            overlay.style.position       = Position.Absolute;
+            overlay.style.left           = 0;
+            overlay.style.top            = 0;
+            overlay.style.right          = 0;
+            overlay.style.bottom         = 0;
+            overlay.style.flexDirection  = FlexDirection.Column;
+            overlay.style.alignItems     = Align.Center;
+            overlay.style.justifyContent = vertical;
+            overlay.pickingMode          = PickingMode.Ignore;
+            return overlay;
+        }
+
+        private static Image MakeFullImage(string resourcePath)
+        {
+            var img = new Image();
+            img.style.position = Position.Absolute;
+            img.style.left     = 0;
+            img.style.top      = 0;
+            img.style.right    = 0;
+            img.style.bottom   = 0;
+            img.scaleMode      = ScaleMode.ScaleAndCrop;
+            img.pickingMode    = PickingMode.Ignore;
+
+            var tex = Resources.Load<Texture2D>(resourcePath);
+            if (tex != null) img.image = tex;
+            else Debug.LogWarning($"[GameApp] Splash image missing: Resources/{resourcePath}");
+            return img;
         }
 
         /// <summary>Sets a fallback system font on the root so labels render even if the theme TSS fails.</summary>
@@ -384,6 +584,41 @@ namespace AWZ.UI
             _root.style.paddingRight  = Mathf.Max(0f, right);
         }
 
+        /// <summary>
+        /// Frames the world-space map camera into the band BETWEEN the HUD header and the bottom
+        /// nav bar by setting the camera's normalised viewport rect. The map then only renders —
+        /// and only receives taps — inside that window, so it can't bleed under header/footer.
+        /// <c>CameraPan2D</c> re-fits to the band's (wider) aspect automatically, which also
+        /// gives proper up/down panning room.
+        /// </summary>
+        private void UpdateMapViewport()
+        {
+            if (_hudBar == null || _navBar == null) return;
+
+            if (_mapCam == null) _mapCam = Camera.main;
+            if (_mapCam == null) return; // no MainCamera tagged in the scene — nothing to frame
+
+            float sw = Screen.width, sh = Screen.height;
+            if (sw <= 1f || sh <= 1f) return;
+
+            // PanelSettings: ScaleWithScreenSize, referenceResolution.x = 430, match = 0 (width)
+            // ⇒ screenPixels = panelPoints × (Screen.width / 430).
+            float scale       = sw / 430f;
+            float hudBottomPx = _hudBar.worldBound.yMax * scale; // from screen TOP
+            float navTopPx    = _navBar.worldBound.yMin * scale;
+            if (float.IsNaN(hudBottomPx) || float.IsNaN(navTopPx)) return;
+            if (navTopPx - hudBottomPx < 10f) return; // not laid out yet / degenerate
+
+            // Normalised viewport rect (origin bottom-left, y up).
+            float yMax = 1f - hudBottomPx / sh; // just under the header
+            float yMin = 1f - navTopPx    / sh; // just above the footer
+            float h    = yMax - yMin;
+            if (h <= 0.02f || h > 1f) return;
+
+            var rect = new Rect(0f, yMin, 1f, h);
+            if (_mapCam.rect != rect) _mapCam.rect = rect;
+        }
+
         // ── HUD bar ──────────────────────────────────────────────────────────
         private void BuildHud()
         {
@@ -392,8 +627,8 @@ namespace AWZ.UI
             _hudBar.style.flexDirection   = FlexDirection.Column;
             _hudBar.style.paddingLeft     = 14;
             _hudBar.style.paddingRight    = 14;
-            _hudBar.style.paddingTop      = 12;
-            _hudBar.style.paddingBottom   = 8;
+            _hudBar.style.paddingTop      = 8;
+            _hudBar.style.paddingBottom   = 6;
 
             var pillRow = new VisualElement();
             pillRow.style.flexDirection  = FlexDirection.Row;
@@ -401,15 +636,15 @@ namespace AWZ.UI
             pillRow.style.justifyContent = Justify.SpaceBetween;
 
             var goldPill = MakeHudPill();
-            goldPill.Add(MakeSprite("icon:coin", 24f));
+            goldPill.Add(AwzIcons.Make(AwzIcons.Kind.Coin, 22f, ColCoinIcon));
             goldPill.Add(MakePillValueColumn(out _lblGold, "GOLD"));
 
             var gemPill = MakeHudPill();
-            gemPill.Add(MakeSprite("icon:gem", 24f));
+            gemPill.Add(AwzIcons.Make(AwzIcons.Kind.Gem, 22f, ColGemIcon));
             gemPill.Add(MakePillValueColumn(out _lblGems, "GEMS"));
 
             var lvlPill = MakeHudPill();
-            lvlPill.Add(MakeSprite("icon:star", 24f));
+            lvlPill.Add(AwzIcons.Make(AwzIcons.Kind.Star, 22f, ColStarIcon));
             lvlPill.Add(MakePillValueColumn(out _lblLevel, "ZOO"));
 
             pillRow.Add(goldPill);
@@ -420,7 +655,7 @@ namespace AWZ.UI
             var statsRow = new VisualElement();
             statsRow.style.flexDirection  = FlexDirection.Row;
             statsRow.style.alignItems     = Align.Center;
-            statsRow.style.marginTop      = 6;
+            statsRow.style.marginTop      = 4;
             statsRow.style.justifyContent = Justify.SpaceBetween;
 
             _lblGps   = MakeStatLabel("0 g/s");
@@ -433,12 +668,12 @@ namespace AWZ.UI
             _hudBar.Add(statsRow);
 
             var xpSection = new VisualElement();
-            xpSection.style.marginTop = 8;
+            xpSection.style.marginTop = 5;
 
             _lblXp = new Label("Lv 1  ·  0 XP  ·  Lv 2");
-            _lblXp.style.fontSize       = 10;
+            _lblXp.style.fontSize       = 9;
             _lblXp.style.color          = ColTextMid;
-            _lblXp.style.marginBottom   = 3;
+            _lblXp.style.marginBottom   = 2;
             _lblXp.style.unityTextAlign = TextAnchor.UpperCenter;
             xpSection.Add(_lblXp);
 
@@ -478,8 +713,8 @@ namespace AWZ.UI
             pill.style.borderBottomRightRadius = 16;
             pill.style.paddingLeft             = 10;
             pill.style.paddingRight            = 12;
-            pill.style.paddingTop              = 6;
-            pill.style.paddingBottom           = 6;
+            pill.style.paddingTop              = 4;
+            pill.style.paddingBottom           = 4;
             pill.style.borderTopWidth          = 1;
             pill.style.borderRightWidth        = 1;
             pill.style.borderBottomWidth       = 2;
@@ -503,7 +738,7 @@ namespace AWZ.UI
             col.style.flexGrow      = 1;
 
             valueLbl = new Label("0");
-            valueLbl.style.fontSize                = 18;
+            valueLbl.style.fontSize                = 16;
             valueLbl.style.color                   = ColTextDark;
             valueLbl.style.unityFontStyleAndWeight = FontStyle.Bold;
 
@@ -537,7 +772,7 @@ namespace AWZ.UI
         // ── Bottom navigation bar ────────────────────────────────────────────
         private void BuildNavBar()
         {
-            var nav = new VisualElement();
+            var nav = _navBar = new VisualElement();
             nav.style.flexDirection   = FlexDirection.Row;
             nav.style.alignItems      = Align.Stretch;
             nav.style.backgroundColor = ColNavBg;
@@ -546,22 +781,12 @@ namespace AWZ.UI
             nav.style.height          = 60;
             nav.style.flexShrink      = 0;
 
-            // Tab definitions aligned to Tab enum order
-            var defs = new (string Label, string IconKey)[]
-            {
-                ("Zoo",        "icon:star"),
-                ("Animals",    "icon:pet"),
-                ("Attract",    "icon:coin"),
-                ("Activities", "icon:feed"),
-                ("Shop",       "icon:gem"),
-            };
-
-            for (int i = 0; i < defs.Length; i++)
+            for (int i = 0; i < NavDefs.Length; i++)
             {
                 int capturedIndex = i; // capture for closure
                 Tab capturedTab   = (Tab)i;
 
-                var btn = MakeNavButton(defs[i].Label, defs[i].IconKey, capturedTab == _activeTab);
+                var btn = MakeNavButton(capturedIndex, capturedTab == _activeTab);
                 btn.clicked += () => SwitchTab(capturedTab);
 
                 _navButtons[capturedIndex] = btn;
@@ -571,66 +796,78 @@ namespace AWZ.UI
             _root.Add(nav);
         }
 
-        /// <summary>
-        /// Builds a nav tab as a Button. Using Button.clicked (confirmed in Unity 6 UI Toolkit
-        /// reference) is the simplest reliable way to handle tap/click on a nav item.
-        /// </summary>
-        private Button MakeNavButton(string label, string iconKey, bool active)
+        // Tab definitions aligned to the Tab enum order. Icons are mono vector glyphs.
+        private static readonly (string Label, AwzIcons.Kind Icon)[] NavDefs =
         {
-            // Button with no default text — we manage children manually
-            var btn = new Button();
-            btn.text = string.Empty;
+            ("Zoo",        AwzIcons.Kind.Zoo),
+            ("Animals",    AwzIcons.Kind.Animals),
+            ("Attract",    AwzIcons.Kind.Attract),
+            ("Activities", AwzIcons.Kind.Activities),
+            ("Shop",       AwzIcons.Kind.Shop),
+        };
 
-            // Remove default Button padding/margin imposed by the runtime theme so our
-            // custom layout takes effect. We also strip the border so it looks like a tab.
-            btn.style.flexGrow         = 1;
-            btn.style.flexDirection    = FlexDirection.Column;
-            btn.style.alignItems       = Align.Center;
-            btn.style.justifyContent   = Justify.Center;
-            btn.style.paddingTop       = 6;
-            btn.style.paddingBottom    = 4;
-            btn.style.paddingLeft      = 0;
-            btn.style.paddingRight     = 0;
-            btn.style.marginTop        = 0;
-            btn.style.marginBottom     = 0;
-            btn.style.marginLeft       = 0;
-            btn.style.marginRight      = 0;
-            btn.style.backgroundColor  = active ? new Color(0.216f, 0.718f, 0.420f, 0.08f) : Color.clear;
-            btn.style.borderTopWidth   = 0;
-            btn.style.borderRightWidth = 0;
+        /// <summary>
+        /// Builds the persistent shell for a nav tab Button (sizing/borders only). The icon,
+        /// label and active-dot are filled by <see cref="PopulateNav"/> so build and highlight
+        /// share one code path. Using Button.clicked is the simplest reliable tap handler.
+        /// </summary>
+        private static Button MakeNavButton(int index, bool active)
+        {
+            var btn = new Button { text = string.Empty };
+            btn.style.flexGrow          = 1;
+            btn.style.flexDirection     = FlexDirection.Column;
+            btn.style.alignItems        = Align.Center;
+            btn.style.justifyContent    = Justify.Center;
+            btn.style.paddingTop        = 6;
+            btn.style.paddingBottom     = 4;
+            btn.style.paddingLeft       = 0;
+            btn.style.paddingRight      = 0;
+            btn.style.marginTop         = 0;
+            btn.style.marginBottom      = 0;
+            btn.style.marginLeft        = 0;
+            btn.style.marginRight       = 0;
+            btn.style.borderTopWidth    = 0;
+            btn.style.borderRightWidth  = 0;
             btn.style.borderBottomWidth = 0;
-            btn.style.borderLeftWidth  = 0;
+            btn.style.borderLeftWidth   = 0;
+            PopulateNav(btn, index, active);
+            return btn;
+        }
 
-            // Icon
-            var icon = MakeSprite(iconKey, 22f);
+        /// <summary>Fills (or refills) a nav button's icon + label + active dot for the given state.</summary>
+        private static void PopulateNav(Button btn, int index, bool active)
+        {
+            btn.Clear();
+            btn.style.backgroundColor = active
+                ? new Color(0.216f, 0.718f, 0.420f, 0.10f)
+                : Color.clear;
+
+            Color tint = active ? ColNavActive : ColNavInactive;
+
+            var icon = AwzIcons.Make(NavDefs[index].Icon, 24f, tint);
             icon.style.marginBottom = 2;
-            if (!active) icon.style.opacity = 0.5f;
             btn.Add(icon);
 
-            // Label
-            var lbl = new Label(label);
+            var lbl = new Label(NavDefs[index].Label);
             lbl.style.fontSize                = 10;
-            lbl.style.color                   = active ? ColNavActive : ColNavInactive;
+            lbl.style.color                   = tint;
             lbl.style.unityFontStyleAndWeight = active ? FontStyle.Bold : FontStyle.Normal;
             lbl.style.unityTextAlign          = TextAnchor.UpperCenter;
             btn.Add(lbl);
 
-            // Active indicator dot
             if (active)
             {
                 var dot = new VisualElement();
-                dot.style.width                      = 4;
-                dot.style.height                     = 4;
-                dot.style.backgroundColor            = ColNavActive;
-                dot.style.borderTopLeftRadius        = 2;
-                dot.style.borderTopRightRadius       = 2;
-                dot.style.borderBottomLeftRadius     = 2;
-                dot.style.borderBottomRightRadius    = 2;
-                dot.style.marginTop                  = 2;
+                dot.style.width                   = 4;
+                dot.style.height                  = 4;
+                dot.style.backgroundColor         = ColNavActive;
+                dot.style.borderTopLeftRadius     = 2;
+                dot.style.borderTopRightRadius    = 2;
+                dot.style.borderBottomLeftRadius  = 2;
+                dot.style.borderBottomRightRadius = 2;
+                dot.style.marginTop               = 2;
                 btn.Add(dot);
             }
-
-            return btn;
         }
 
         /// <summary>Switches to the given tab: updates highlight, clears body, rebuilds content.</summary>
@@ -644,56 +881,32 @@ namespace AWZ.UI
         /// <summary>Repaints all five nav buttons to reflect the new active tab.</summary>
         private void UpdateNavHighlight()
         {
-            string[] labels    = { "Zoo", "Animals", "Attract", "Activities", "Shop" };
-            string[] iconKeys  = { "icon:star", "icon:pet", "icon:coin", "icon:feed", "icon:gem" };
-
             for (int i = 0; i < _navButtons.Length; i++)
-            {
-                bool active = (Tab)i == _activeTab;
-                var  btn    = _navButtons[i];
-
-                // Rebuild the button's children to repaint icon + label + dot
-                btn.Clear();
-                btn.style.backgroundColor = active
-                    ? new Color(0.216f, 0.718f, 0.420f, 0.08f)
-                    : Color.clear;
-
-                var icon = MakeSprite(iconKeys[i], 22f);
-                icon.style.marginBottom = 2;
-                if (!active) icon.style.opacity = 0.5f;
-                btn.Add(icon);
-
-                var lbl = new Label(labels[i]);
-                lbl.style.fontSize                = 10;
-                lbl.style.color                   = active ? ColNavActive : ColNavInactive;
-                lbl.style.unityFontStyleAndWeight = active ? FontStyle.Bold : FontStyle.Normal;
-                lbl.style.unityTextAlign          = TextAnchor.UpperCenter;
-                btn.Add(lbl);
-
-                if (active)
-                {
-                    var dot = new VisualElement();
-                    dot.style.width                      = 4;
-                    dot.style.height                     = 4;
-                    dot.style.backgroundColor            = ColNavActive;
-                    dot.style.borderTopLeftRadius        = 2;
-                    dot.style.borderTopRightRadius       = 2;
-                    dot.style.borderBottomLeftRadius     = 2;
-                    dot.style.borderBottomRightRadius    = 2;
-                    dot.style.marginTop                  = 2;
-                    btn.Add(dot);
-                }
-            }
+                PopulateNav(_navButtons[i], i, (Tab)i == _activeTab);
         }
 
         // ── Content dispatch ─────────────────────────────────────────────────
         private void RebuildCurrentTab()
         {
+            // Preserve the scroll position across the periodic rebuild so it doesn't snap to
+            // the top 4×/sec. A pending focus scroll (set in ApplyAnimalFocus) overrides this.
+            Vector2 prevScroll = _bodyScroll.scrollOffset;
+            bool restoreScroll = string.IsNullOrEmpty(_focusSpecies);
+
             _bodyScroll.Clear();
 
             // Zoo tab is left transparent so the world-space zoo (scene camera) shows
             // through the HUD overlay. Every other tab is a full opaque screen.
-            _bodyScroll.style.backgroundColor = _activeTab == Tab.Zoo ? Color.clear : ColBg;
+            bool zoo = _activeTab == Tab.Zoo;
+            _bodyScroll.style.backgroundColor = zoo ? Color.clear : ColBg;
+
+            // On the Zoo tab, make the empty body area click-through so taps reach the
+            // world-space animal colliders (OnMouseDown → WorldTapBus). Ignore only affects
+            // the element itself — the stats strip and hint children stay tappable.
+            var mode = zoo ? PickingMode.Ignore : PickingMode.Position;
+            _bodyScroll.pickingMode                  = mode;
+            _bodyScroll.contentViewport.pickingMode  = mode;
+            _bodyScroll.contentContainer.pickingMode = mode;
 
             switch (_activeTab)
             {
@@ -703,6 +916,10 @@ namespace AWZ.UI
                 case Tab.Activities: BuildActivitiesTab(); break;
                 case Tab.Shop:       BuildShopTab();       break;
             }
+
+            // Re-apply the saved scroll offset once the new content has a resolved layout.
+            if (restoreScroll)
+                _bodyScroll.schedule.Execute(() => _bodyScroll.scrollOffset = prevScroll).ExecuteLater(1);
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -759,62 +976,20 @@ namespace AWZ.UI
 
         private void BuildZooTab()
         {
-            // ── Compact stats strip ──────────────────────────────────────────
-            long   gps     = _economy.GoldPerSec();
-            long   cap     = _economy.Capacity();
-            float  happy   = _care.AvgHappiness();
-            double totalAppeal = 0;
-            foreach (string k in _state.OwnedSpecies)
-                totalAppeal += _economy.AppealOf(k);
-            long visitors = Math.Min((long)Math.Round(totalAppeal), cap);
-
-            var statsStrip = new VisualElement();
-            statsStrip.style.flexDirection   = FlexDirection.Row;
-            statsStrip.style.justifyContent  = Justify.SpaceAround;
-            statsStrip.style.alignItems      = Align.Center;
-            statsStrip.style.backgroundColor = ColCardBg;
-            statsStrip.style.borderTopLeftRadius     = 10;
-            statsStrip.style.borderTopRightRadius    = 10;
-            statsStrip.style.borderBottomLeftRadius  = 10;
-            statsStrip.style.borderBottomRightRadius = 10;
-            statsStrip.style.borderTopWidth    = 1;
-            statsStrip.style.borderRightWidth  = 1;
-            statsStrip.style.borderBottomWidth = 2;
-            statsStrip.style.borderLeftWidth   = 1;
-            statsStrip.style.borderTopColor    = ColCardBorder;
-            statsStrip.style.borderRightColor  = ColCardBorder;
-            statsStrip.style.borderBottomColor = ColCardBorder;
-            statsStrip.style.borderLeftColor   = ColCardBorder;
-            statsStrip.style.paddingTop        = 7;
-            statsStrip.style.paddingBottom     = 7;
-            statsStrip.style.marginLeft        = 10;
-            statsStrip.style.marginRight       = 10;
-            statsStrip.style.marginBottom      = 8;
-
-            statsStrip.Add(MakeStatsChip($"{gps:n0} g/s", "Gold/sec"));
-            statsStrip.Add(MakeStatsChip($"{cap:n0}",     "Capacity"));
-            statsStrip.Add(MakeStatsChip($"{visitors:n0}","Visitors"));
-            statsStrip.Add(MakeStatsChip($"{happy:0}%",   "Happy"));
-            _bodyScroll.Add(statsStrip);
-
-            // ── Zoo world view ───────────────────────────────────────────────
-            // The living zoo (map background + animals) is rendered in WORLD SPACE by the
-            // scene camera (CameraPan2D). This UI Toolkit panel is only a transparent HUD
-            // overlay, so the Zoo-tab body is left clear and the world shows through.
-            // No map is drawn here: the old UI Toolkit map duplicated the world and could
-            // never stay aligned with it across aspect ratios. World interactivity
-            // (tap an animal in-world) is a later phase — for now care routes via tabs.
-
-            // ── Hint label ───────────────────────────────────────────────────
-            var hint = new Label("Tap Animals to care · Attract to build attractions");
-            hint.style.fontSize       = 12;
+            // The Zoo tab is a transparent window onto the world-space map (scene camera +
+            // ZooMapView). No stats card here — the HUD bar already shows gold/sec, capacity
+            // and happiness, so the old duplicate strip just ate map space. Only a thin hint,
+            // and it ignores pointer events so taps fall through to the animals beneath it.
+            var hint = new Label("Drag to explore · tap an animal to care for it");
+            hint.style.fontSize       = 11;
             hint.style.color          = ColTextLight;
             hint.style.unityTextAlign = TextAnchor.UpperCenter;
-            hint.style.marginTop      = 10;
-            hint.style.marginBottom   = 16;
+            hint.style.marginTop      = 6;
+            hint.style.marginBottom   = 6;
             hint.style.marginLeft     = 20;
             hint.style.marginRight    = 20;
             hint.style.whiteSpace     = WhiteSpace.Normal;
+            hint.pickingMode          = PickingMode.Ignore;
             _bodyScroll.Add(hint);
         }
 
@@ -1010,7 +1185,11 @@ namespace AWZ.UI
             animalContainer.style.paddingLeft  = 10;
             animalContainer.style.paddingRight = 10;
             foreach (string key in _state.OwnedSpecies)
-                animalContainer.Add(BuildAnimalCard(key));
+            {
+                var card = BuildAnimalCard(key);
+                if (key == _focusSpecies) _focusTarget = card; // tapped animal → scroll here
+                animalContainer.Add(card);
+            }
             _bodyScroll.Add(animalContainer);
 
             // Adopt New Species section
@@ -1024,7 +1203,9 @@ namespace AWZ.UI
             foreach (var a in DefaultAnimalData.All)
             {
                 if (Array.IndexOf(_state.OwnedSpecies, a.Key) >= 0) continue;
-                adoptContainer.Add(BuildAdoptRow(a));
+                var row = BuildAdoptRow(a);
+                if (a.Key == _focusSpecies) _focusTarget = row; // tapped (unowned) → scroll to adopt row
+                adoptContainer.Add(row);
                 anyAdoptable = true;
             }
             if (!anyAdoptable)
@@ -1055,6 +1236,8 @@ namespace AWZ.UI
             devRow.Add(MakeDevButton("+5000 XP",   () => { _level.AddXp(5000);                      FullRefresh(); }));
             devRow.Add(MakeDevButton("Reset",       () => { BuildDomain();                           FullRefresh(); }));
             _bodyScroll.Add(devRow);
+
+            ApplyAnimalFocus(); // if a world tap requested it, scroll to + flash that card
         }
 
         // ── Animal card (unchanged logic) ────────────────────────────────────
@@ -1758,6 +1941,10 @@ namespace AWZ.UI
         private void RefreshUI()
         {
             RefreshHud();
+            // Never rebuild while the player is mid-tap — it would destroy the button the
+            // Clickable is still tracking and drop the click. The next tick (pointer released)
+            // catches up.
+            if (_pointerHeld) return;
             RebuildCurrentTab();
         }
 
@@ -1766,6 +1953,73 @@ namespace AWZ.UI
         {
             RefreshHud();
             RebuildCurrentTab();
+            ZooRosterBus.Publish(_state.OwnedSpecies); // map re-syncs only if the roster changed
+        }
+
+        // ── World animal tap → focus its Animals-tab card ────────────────────
+
+        /// <summary>
+        /// Tapping an animal in the world jumps to the Animals tab and scrolls to that
+        /// animal's care card (hunger/thirst/clean/happy + care buttons). No popup —
+        /// the live care info lives in the tab itself.
+        /// </summary>
+        private void OnAnimalTapped(string speciesRaw)
+        {
+            _focusSpecies = ResolveSpeciesKey(speciesRaw);
+            SwitchTab(Tab.Animals); // rebuilds the tab; the build captures + scrolls to the card
+        }
+
+        /// <summary>Maps a world object's species label (key or display name) to a roster key.</summary>
+        private static string ResolveSpeciesKey(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return null;
+            string r = raw.Trim().ToLowerInvariant();
+            if (r.StartsWith("animal_")) r = r.Substring("animal_".Length);
+            foreach (var a in DefaultAnimalData.All)
+            {
+                if (a.Key.ToLowerInvariant()  == r) return a.Key;
+                if (a.Name.ToLowerInvariant() == r) return a.Key;
+            }
+            return r; // not in the roster (decorative species) — tab opens at the top
+        }
+
+        /// <summary>
+        /// After the Animals tab is built, scrolls to and briefly highlights the focused
+        /// card. One-shot: clears <see cref="_focusSpecies"/> so the periodic rebuild won't
+        /// keep yanking the scroll position.
+        /// </summary>
+        private void ApplyAnimalFocus()
+        {
+            if (string.IsNullOrEmpty(_focusSpecies)) return;
+
+            var target = _focusTarget;
+            _focusSpecies = null;
+            _focusTarget  = null;
+            if (target == null) return; // species not present in the tab (not owned, not in roster)
+
+            // Defer one frame so layout is resolved before scrolling.
+            _bodyScroll.schedule.Execute(() =>
+            {
+                _bodyScroll.ScrollTo(target);
+                FlashHighlight(target);
+            }).ExecuteLater(16);
+        }
+
+        /// <summary>Briefly tints a card's border to draw the eye, then restores it.</summary>
+        private static void FlashHighlight(VisualElement el)
+        {
+            Color from = ColNavActive;
+            el.style.borderTopColor    = from;
+            el.style.borderRightColor  = from;
+            el.style.borderBottomColor = from;
+            el.style.borderLeftColor   = from;
+            el.schedule.Execute(() =>
+            {
+                el.style.borderTopColor    = ColCardBorder;
+                el.style.borderRightColor  = ColCardBorder;
+                el.style.borderBottomColor = ColCardBorder;
+                el.style.borderLeftColor   = ColCardBorder;
+            }).ExecuteLater(900);
         }
 
         // ── Style helpers ────────────────────────────────────────────────────
@@ -1814,92 +2068,115 @@ namespace AWZ.UI
             return lbl;
         }
 
-        /// <summary>Care button: green with icon + label side by side.</summary>
-        private Button MakeCareButton(string label, string iconKey, Action clicked)
-        {
-            var btn = new Button(clicked);
-            btn.style.flexDirection              = FlexDirection.Row;
-            btn.style.alignItems                 = Align.Center;
-            btn.style.backgroundColor            = ColCareBg;
-            btn.style.color                      = ColCareText;
-            btn.style.fontSize                   = 12;
-            btn.style.paddingLeft                = 8;
-            btn.style.paddingRight               = 10;
-            btn.style.paddingTop                 = 5;
-            btn.style.paddingBottom              = 5;
-            btn.style.marginRight                = 4;
-            btn.style.marginBottom               = 4;
-            btn.style.borderTopLeftRadius        = 10;
-            btn.style.borderTopRightRadius       = 10;
-            btn.style.borderBottomLeftRadius     = 10;
-            btn.style.borderBottomRightRadius    = 10;
-            btn.style.borderTopWidth             = 0;
-            btn.style.borderRightWidth           = 0;
-            btn.style.borderBottomWidth          = 0;
-            btn.style.borderLeftWidth            = 0;
-            btn.style.unityFontStyleAndWeight    = FontStyle.Bold;
+        // ── Unified soft-depth button system ─────────────────────────────────
+        // Every action button is built here so styling, the depth "lip", and the
+        // press-down feedback stay consistent. Variants differ only by colour + icon.
 
-            var icon = MakeSprite(iconKey, 16f);
-            icon.style.marginRight = 4;
-            btn.text = string.Empty;
-            btn.Add(icon);
+        /// <summary>Care action button (green) with a mono icon + label.</summary>
+        private static Button MakeCareButton(string label, string iconKey, Action clicked)
+            => MakeSoftButton(label, ColCareBg, ColCareText, IconFromKey(iconKey), clicked, small: true);
+
+        /// <summary>Economy / purchase button (gold/amber), text only.</summary>
+        private static Button MakeEconButton(string text, Action clicked)
+            => MakeSoftButton(text, ColEconBg, ColEconText, null, clicked, small: true);
+
+        /// <summary>DEV button: muted gray, unobtrusive.</summary>
+        private static Button MakeDevButton(string text, Action clicked)
+            => MakeSoftButton(text, ColDevBg, ColDevText, null, clicked, small: true);
+
+        /// <summary>
+        /// Builds a soft-depth button: solid fill, a darker bottom "lip" for depth, and a
+        /// press animation (the button sinks 2px and the lip flattens while held). All state
+        /// changes are inline styles so the runtime theme's hover/active never fights them.
+        /// </summary>
+        private static Button MakeSoftButton(string label, Color bg, Color fg,
+                                             AwzIcons.Kind? icon, Action clicked, bool small)
+        {
+            var btn = new Button(clicked) { text = string.Empty };
+
+            Color lip     = Darken(bg, 0.80f);
+            Color pressed = Darken(bg, 0.90f);
+
+            float padV = small ? 6f  : 9f;
+            float padH = small ? 12f : 16f;
+            float fs   = small ? 12f : 13f;
+
+            btn.style.flexDirection           = FlexDirection.Row;
+            btn.style.alignItems              = Align.Center;
+            btn.style.justifyContent          = Justify.Center;
+            btn.style.backgroundColor         = bg;
+            btn.style.color                   = fg;
+            btn.style.fontSize                = fs;
+            btn.style.unityFontStyleAndWeight = FontStyle.Bold;
+            btn.style.whiteSpace              = WhiteSpace.NoWrap;
+            btn.style.paddingTop              = padV;
+            btn.style.paddingBottom           = padV;
+            btn.style.paddingLeft             = padH;
+            btn.style.paddingRight            = padH;
+            btn.style.marginTop               = 0;
+            btn.style.marginBottom            = 4;
+            btn.style.marginLeft              = 0;
+            btn.style.marginRight             = 5;
+            btn.style.minHeight               = small ? 32f : 40f;
+            SetRadius(btn, 12f);
+            btn.style.borderTopWidth          = 0;
+            btn.style.borderLeftWidth         = 0;
+            btn.style.borderRightWidth        = 0;
+            btn.style.borderBottomWidth       = 3;
+            btn.style.borderBottomColor       = lip;
+
+            if (icon.HasValue)
+            {
+                var ic = AwzIcons.Make(icon.Value, fs + 3f, fg);
+                ic.style.marginRight = 6;
+                btn.Add(ic);
+            }
 
             var lbl = new Label(label);
-            lbl.style.color                   = ColCareText;
-            lbl.style.fontSize                = 12;
+            lbl.style.color                   = fg;
+            lbl.style.fontSize                = fs;
             lbl.style.unityFontStyleAndWeight = FontStyle.Bold;
+            lbl.style.whiteSpace              = WhiteSpace.NoWrap;
             btn.Add(lbl);
 
+            void Restore()
+            {
+                btn.style.translate         = new Translate(0f, 0f);
+                btn.style.borderBottomWidth = 3;
+                btn.style.backgroundColor   = bg;
+            }
+            btn.RegisterCallback<PointerDownEvent>(_ =>
+            {
+                btn.style.translate         = new Translate(0f, 2f);
+                btn.style.borderBottomWidth = 1;
+                btn.style.backgroundColor   = pressed;
+            });
+            btn.RegisterCallback<PointerUpEvent>(_     => Restore());
+            btn.RegisterCallback<PointerLeaveEvent>(_  => Restore());
+            btn.RegisterCallback<PointerCancelEvent>(_ => Restore());
             return btn;
         }
 
-        /// <summary>Economy button: gold/amber accent.</summary>
-        private static Button MakeEconButton(string text, Action clicked)
+        private static AwzIcons.Kind? IconFromKey(string key) => key switch
         {
-            var btn = new Button(clicked) { text = text };
-            btn.style.backgroundColor         = ColEconBg;
-            btn.style.color                   = ColEconText;
-            btn.style.fontSize                = 12;
-            btn.style.paddingLeft             = 10;
-            btn.style.paddingRight            = 10;
-            btn.style.paddingTop              = 5;
-            btn.style.paddingBottom           = 5;
-            btn.style.marginRight             = 4;
-            btn.style.marginBottom            = 4;
-            btn.style.borderTopLeftRadius     = 10;
-            btn.style.borderTopRightRadius    = 10;
-            btn.style.borderBottomLeftRadius  = 10;
-            btn.style.borderBottomRightRadius = 10;
-            btn.style.borderTopWidth          = 0;
-            btn.style.borderRightWidth        = 0;
-            btn.style.borderBottomWidth       = 0;
-            btn.style.borderLeftWidth         = 0;
-            btn.style.unityFontStyleAndWeight = FontStyle.Bold;
-            return btn;
-        }
+            "icon:coin"  => AwzIcons.Kind.Coin,
+            "icon:gem"   => AwzIcons.Kind.Gem,
+            "icon:star"  => AwzIcons.Kind.Star,
+            "icon:feed"  => AwzIcons.Kind.Feed,
+            "icon:water" => AwzIcons.Kind.Water,
+            "icon:clean" => AwzIcons.Kind.Clean,
+            "icon:pet"   => AwzIcons.Kind.Pet,
+            _            => (AwzIcons.Kind?)null,
+        };
 
-        /// <summary>DEV button: muted gray, small, unobtrusive.</summary>
-        private static Button MakeDevButton(string text, Action clicked)
+        private static Color Darken(Color c, float f) => new Color(c.r * f, c.g * f, c.b * f, c.a);
+
+        private static void SetRadius(VisualElement e, float r)
         {
-            var btn = new Button(clicked) { text = text };
-            btn.style.backgroundColor         = ColDevBg;
-            btn.style.color                   = ColDevText;
-            btn.style.fontSize                = 11;
-            btn.style.paddingLeft             = 8;
-            btn.style.paddingRight            = 8;
-            btn.style.paddingTop              = 4;
-            btn.style.paddingBottom           = 4;
-            btn.style.marginRight             = 6;
-            btn.style.marginBottom            = 4;
-            btn.style.borderTopLeftRadius     = 6;
-            btn.style.borderTopRightRadius    = 6;
-            btn.style.borderBottomLeftRadius  = 6;
-            btn.style.borderBottomRightRadius = 6;
-            btn.style.borderTopWidth          = 0;
-            btn.style.borderRightWidth        = 0;
-            btn.style.borderBottomWidth       = 0;
-            btn.style.borderLeftWidth         = 0;
-            return btn;
+            e.style.borderTopLeftRadius     = r;
+            e.style.borderTopRightRadius    = r;
+            e.style.borderBottomLeftRadius  = r;
+            e.style.borderBottomRightRadius = r;
         }
     }
 }
