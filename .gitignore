@@ -112,3 +112,6 @@ InitTestScene*.unity*
 
 # macOS
 .DS_Store
+
+# MCP server config (chứa API key — không commit)
+.mcp.json

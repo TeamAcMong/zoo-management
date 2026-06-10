@@ -207,6 +207,22 @@ namespace AWZ.UI
                 else
                     Debug.LogWarning($"[GameApp] Missing decor texture: Art/Decor/{d}");
             }
+
+            // Zoo map background (Ludo art) — drawn behind the pens on the Zoo tab.
+            var mapTex = Resources.Load<Texture2D>("Art/UI/zoomap");
+            if (mapTex != null)
+                _texCache["map"] = mapTex;
+            else
+                Debug.LogWarning("[GameApp] Missing map texture: Art/UI/zoomap");
+
+            // Idle animation spritesheets (4x4, 16 frames) for the map enclosures.
+            // Optional — a species without a sheet simply renders its static face icon.
+            foreach (string k in animalKeys)
+            {
+                var sheet = Resources.Load<Texture2D>($"Art/AnimalsAnim/{k}");
+                if (sheet != null)
+                    _texCache[$"anim:{k}"] = sheet;
+            }
         }
 
         /// <summary>Returns a cached texture or null. Never calls Resources.Load after Awake.</summary>
@@ -214,6 +230,39 @@ namespace AWZ.UI
         {
             _texCache.TryGetValue(cacheKey, out var t);
             return t;
+        }
+
+        /// <summary>
+        /// Creates an Image that frame-cycles an animal's 4x4 idle spritesheet via sourceRect
+        /// (~11 fps loop). Falls back to the static face sprite when no animation sheet exists.
+        /// </summary>
+        private Image MakeAnimatedAnimal(string speciesKey, float size)
+        {
+            var sheet = GetTex($"anim:{speciesKey}");
+            if (sheet == null) return MakeSprite($"animal:{speciesKey}", size);
+
+            const int cols = 4, rows = 4, total = 16;
+            float fw = sheet.width  / (float)cols;
+            float fh = sheet.height / (float)rows;
+
+            var img = new Image();
+            img.style.width      = size;
+            img.style.height     = size;
+            img.style.flexShrink = 0;
+            img.scaleMode        = ScaleMode.ScaleToFit;
+            img.image            = sheet;
+            img.sourceRect       = new Rect(0f, 0f, fw, fh);
+
+            int frame = 0;
+            img.schedule.Execute(() =>
+            {
+                frame = (frame + 1) % total;
+                int col = frame % cols;
+                int row = frame / cols;
+                img.sourceRect = new Rect(col * fw, row * fh, fw, fh);
+            }).Every(90);
+
+            return img;
         }
 
         /// <summary>
@@ -684,6 +733,15 @@ namespace AWZ.UI
         private static readonly Color ColPond         = new Color(0.494f, 0.784f, 0.890f, 1f); // #7EC8E3 pond blue
         private static readonly Color ColPath         = new Color(0.859f, 0.804f, 0.667f, 1f); // #DBCDAA subtle path
 
+        // Enclosure centres as percent of the Ludo map image (768x1344). Owned animals
+        // fill these slots in order. Tuned to the painted pens on zoomap.png.
+        private static readonly (float L, float T)[] PenPct =
+        {
+            (40f,14f), (17f,24f), (31f,28f), (22f,37f),
+            (72f,22f), (78f,38f), (18f,55f), (62f,50f),
+            (28f,82f), (45f,45f), (72f,62f), (50f,70f),
+        };
+
         private void BuildZooTab()
         {
             // ── Compact stats strip ──────────────────────────────────────────
@@ -724,92 +782,46 @@ namespace AWZ.UI
             statsStrip.Add(MakeStatsChip($"{happy:0}%",   "Happy"));
             _bodyScroll.Add(statsStrip);
 
-            // ── Map canvas (position:relative, full width, fixed 760px height) ──
+            // ── Map canvas: Ludo top-down zoo art as the background. ──────────
+            // Height is corrected on layout to preserve the 768x1344 image aspect so the
+            // percent-positioned pens land exactly on the painted enclosures.
             var mapCanvas = new VisualElement();
-            mapCanvas.style.position        = Position.Relative;
-            mapCanvas.style.width           = new StyleLength(new Length(100f, LengthUnit.Percent));
-            mapCanvas.style.height          = 760;
-            mapCanvas.style.backgroundColor = ColGround;
-            mapCanvas.style.marginLeft      = 0;
-            mapCanvas.style.marginRight     = 0;
-            mapCanvas.style.overflow        = Overflow.Visible; // allow pen sprites to breathe at top
+            mapCanvas.style.position    = Position.Relative;
+            mapCanvas.style.width       = new StyleLength(new Length(100f, LengthUnit.Percent));
+            mapCanvas.style.height      = 600; // provisional; set precisely in the layout callback
+            mapCanvas.style.marginLeft  = 6;
+            mapCanvas.style.marginRight = 6;
+            mapCanvas.style.marginBottom = 8;
+            mapCanvas.style.overflow    = Overflow.Visible;
 
-            // Darker ground border to frame the map
-            mapCanvas.style.borderTopWidth    = 2;
-            mapCanvas.style.borderBottomWidth = 2;
-            mapCanvas.style.borderLeftWidth   = 2;
-            mapCanvas.style.borderRightWidth  = 2;
-            mapCanvas.style.borderTopColor    = new Color(0.380f, 0.580f, 0.310f, 1f);
-            mapCanvas.style.borderBottomColor = new Color(0.380f, 0.580f, 0.310f, 1f);
-            mapCanvas.style.borderLeftColor   = new Color(0.380f, 0.580f, 0.310f, 1f);
-            mapCanvas.style.borderRightColor  = new Color(0.380f, 0.580f, 0.310f, 1f);
+            var mapTex = GetTex("map");
+            if (mapTex != null)
+            {
+                mapCanvas.style.backgroundImage          = new StyleBackground(mapTex);
+                mapCanvas.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
+            }
+            else
+            {
+                mapCanvas.style.backgroundColor = ColGround;
+            }
 
-            // ── Subtle path cross-walks ──────────────────────────────────────
-            // Horizontal centre path
-            var pathH = new VisualElement();
-            pathH.style.position        = Position.Absolute;
-            pathH.style.left            = new StyleLength(new Length(0f,   LengthUnit.Percent));
-            pathH.style.top             = new StyleLength(new Length(350f, LengthUnit.Pixel));
-            pathH.style.width           = new StyleLength(new Length(100f, LengthUnit.Percent));
-            pathH.style.height          = 20;
-            pathH.style.backgroundColor = ColPath;
-            mapCanvas.Add(pathH);
+            const float MapAspect = 1344f / 768f; // portrait map ratio
+            mapCanvas.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                float w = mapCanvas.resolvedStyle.width;
+                if (w <= 1f) return;
+                float target = w * MapAspect;
+                if (Mathf.Abs(mapCanvas.resolvedStyle.height - target) > 1f)
+                    mapCanvas.style.height = target;
+            });
 
-            // Vertical centre path
-            var pathV = new VisualElement();
-            pathV.style.position        = Position.Absolute;
-            pathV.style.left            = new StyleLength(new Length(48f, LengthUnit.Percent));
-            pathV.style.top             = new StyleLength(new Length(0f,  LengthUnit.Pixel));
-            pathV.style.width           = 20;
-            pathV.style.height          = 760;
-            pathV.style.backgroundColor = ColPath;
-            mapCanvas.Add(pathV);
-
-            // ── Pond ────────────────────────────────────────────────────────
-            var pond = new VisualElement();
-            pond.style.position        = Position.Absolute;
-            pond.style.left            = new StyleLength(new Length(30f,  LengthUnit.Percent));
-            pond.style.top             = new StyleLength(new Length(570f, LengthUnit.Pixel));
-            pond.style.width           = 140;
-            pond.style.height          = 70;
-            pond.style.backgroundColor = ColPond;
-            pond.style.borderTopLeftRadius     = 35;
-            pond.style.borderTopRightRadius    = 35;
-            pond.style.borderBottomLeftRadius  = 35;
-            pond.style.borderBottomRightRadius = 35;
-            pond.style.borderTopWidth    = 2;
-            pond.style.borderRightWidth  = 2;
-            pond.style.borderBottomWidth = 2;
-            pond.style.borderLeftWidth   = 2;
-            pond.style.borderTopColor    = new Color(0.290f, 0.620f, 0.780f, 1f);
-            pond.style.borderRightColor  = new Color(0.290f, 0.620f, 0.780f, 1f);
-            pond.style.borderBottomColor = new Color(0.290f, 0.620f, 0.780f, 1f);
-            pond.style.borderLeftColor   = new Color(0.290f, 0.620f, 0.780f, 1f);
-            mapCanvas.Add(pond);
-
-            // Pond label
-            var pondLbl = new Label("Pond");
-            pondLbl.style.position        = Position.Absolute;
-            pondLbl.style.left            = new StyleLength(new Length(30f,  LengthUnit.Percent));
-            pondLbl.style.top             = new StyleLength(new Length(595f, LengthUnit.Pixel));
-            pondLbl.style.width           = 140;
-            pondLbl.style.fontSize        = 10;
-            pondLbl.style.color           = new Color(0.160f, 0.430f, 0.600f, 1f);
-            pondLbl.style.unityTextAlign  = TextAnchor.UpperCenter;
-            pondLbl.style.unityFontStyleAndWeight = FontStyle.Bold;
-            mapCanvas.Add(pondLbl);
-
-            // ── Decor sprites ────────────────────────────────────────────────
-            foreach (var (decorKey, leftPct, topPx, size) in DecorPlacements)
-                mapCanvas.Add(PlaceDecor($"decor:{decorKey}", leftPct, topPx, size));
-
-            // ── Animal enclosure pens ────────────────────────────────────────
+            // ── Animals on their painted enclosures (percent of the map image) ──
             int slotIdx = 0;
             foreach (string speciesKey in _state.OwnedSpecies)
             {
-                if (slotIdx >= PenSlots.Length) break;
-                var (leftPct, topPx) = PenSlots[slotIdx++];
-                mapCanvas.Add(MakePen(speciesKey, leftPct, topPx));
+                if (slotIdx >= PenPct.Length) break;
+                var (leftPct, topPct) = PenPct[slotIdx++];
+                mapCanvas.Add(MakePenOnMap(speciesKey, leftPct, topPct));
             }
 
             _bodyScroll.Add(mapCanvas);
@@ -825,6 +837,47 @@ namespace AWZ.UI
             hint.style.marginRight    = 20;
             hint.style.whiteSpace     = WhiteSpace.Normal;
             _bodyScroll.Add(hint);
+        }
+
+        /// <summary>
+        /// Places an owned animal on the Ludo map at (leftPct, topPct) of the image, centred on
+        /// that point. Transparent sprite + a small name pill. Tap routes to the Animals tab.
+        /// </summary>
+        private VisualElement MakePenOnMap(string speciesKey, float leftPct, float topPct)
+        {
+            int    count = _state.AnimalCounts.TryGetValue(speciesKey, out int c) ? c : 0;
+            string name  = DefaultAnimalData.NameOf(speciesKey);
+
+            var holder = new VisualElement();
+            holder.style.position   = Position.Absolute;
+            holder.style.left       = new StyleLength(new Length(leftPct, LengthUnit.Percent));
+            holder.style.top        = new StyleLength(new Length(topPct,  LengthUnit.Percent));
+            holder.style.translate  = new StyleTranslate(new Translate(Length.Percent(-50f), Length.Percent(-50f)));
+            holder.style.alignItems = Align.Center;
+            holder.style.overflow   = Overflow.Visible;
+
+            var sprite = MakeAnimatedAnimal(speciesKey, 92f);
+            holder.Add(sprite);
+
+            var nameLbl = new Label(count > 1 ? $"{name}  x{count}" : name);
+            nameLbl.style.fontSize                = 11;
+            nameLbl.style.color                   = ColTextDark;
+            nameLbl.style.unityFontStyleAndWeight = FontStyle.Bold;
+            nameLbl.style.unityTextAlign          = TextAnchor.UpperCenter;
+            nameLbl.style.backgroundColor         = new Color(0.965f, 0.945f, 0.886f, 0.92f);
+            nameLbl.style.paddingLeft             = 7;
+            nameLbl.style.paddingRight            = 7;
+            nameLbl.style.paddingTop              = 1;
+            nameLbl.style.paddingBottom           = 1;
+            nameLbl.style.marginTop               = -8;
+            nameLbl.style.borderTopLeftRadius     = 8;
+            nameLbl.style.borderTopRightRadius    = 8;
+            nameLbl.style.borderBottomLeftRadius  = 8;
+            nameLbl.style.borderBottomRightRadius = 8;
+            holder.Add(nameLbl);
+
+            holder.RegisterCallback<PointerDownEvent>(_ => SwitchTab(Tab.Animals));
+            return holder;
         }
 
         /// <summary>

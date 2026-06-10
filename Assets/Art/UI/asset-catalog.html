@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Animal World Zoo — Ludo Art Asset Catalog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --linen:#F2EBD9; --linen-lift:#F5EFE2; --soil:#8B5E3C; --sage:#7A9E7E;
+    --canopy:#2D5A3D; --straw:#D9B87C; --amber:#C47A2B; --stone:#6B8FA3;
+    --ink:#2A2016; --hud:#2B2318; --shadow:rgba(40,28,10,.18);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"Plus Jakarta Sans",sans-serif; color:var(--ink);
+    background:var(--linen); line-height:1.5; padding:0 0 64px;
+  }
+  header{
+    background:var(--hud); color:#EDE8DC; padding:28px 24px;
+    box-shadow:0 2px 8px var(--shadow);
+  }
+  header h1{margin:0 0 6px; font-size:24px; font-weight:700;}
+  header p{margin:2px 0; font-size:13px; opacity:.85;}
+  .wrap{max-width:1100px; margin:0 auto; padding:0 24px;}
+  .provenance{
+    background:var(--linen-lift); border-radius:14px; padding:18px 22px;
+    box-shadow:0 2px 6px var(--shadow); margin:28px auto; max-width:1100px;
+  }
+  .provenance h2{margin:0 0 10px; font-size:16px; font-weight:600; color:var(--soil);}
+  .provenance table{width:100%; border-collapse:collapse; font-size:13px;}
+  .provenance td{padding:4px 8px; vertical-align:top;}
+  .provenance td:first-child{font-weight:600; width:160px; color:var(--canopy);}
+  .note{font-size:12px; color:var(--soil); margin-top:10px; font-style:italic;}
+  section{margin:34px auto; max-width:1100px;}
+  h2.zone{
+    font-size:18px; font-weight:600; color:var(--canopy);
+    border-left:5px solid var(--amber); padding-left:12px; margin:0 0 16px;
+  }
+  .map-row{display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start;}
+  .map-card{
+    background:var(--linen-lift); border-radius:20px; padding:14px;
+    box-shadow:0 2px 8px var(--shadow); text-align:center;
+  }
+  .map-card.primary img{width:280px;}
+  .map-card.alt img{width:200px; opacity:.92;}
+  .map-card img{display:block; border-radius:12px; height:auto;}
+  .map-card figcaption{font-size:12px; margin-top:8px; color:var(--soil);}
+  .badge{
+    display:inline-block; font-size:11px; font-weight:600; padding:2px 9px;
+    border-radius:9999px; background:var(--amber); color:#fff8ec; margin-left:6px;
+  }
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:18px;
+  }
+  figure.icon{
+    margin:0; background:var(--linen-lift); border-radius:14px; padding:12px;
+    box-shadow:0 2px 6px var(--shadow); text-align:center;
+    transition:transform .12s ease;
+  }
+  figure.icon:hover{transform:translateY(-3px);}
+  figure.icon img{width:100%; height:auto; border-radius:10px; display:block;}
+  figure.icon figcaption{margin-top:8px;}
+  figure.icon .name{font-size:14px; font-weight:600;}
+  figure.icon .file{font-size:10px; color:var(--soil); word-break:break-all; display:block; margin-top:2px;}
+  footer{
+    max-width:1100px; margin:40px auto 0; padding:20px 24px;
+    border-top:1px solid rgba(139,94,60,.25); font-size:12px; color:var(--soil);
+  }
+  footer strong{color:var(--ink);}
+</style>
+</head>
+<body>
+<header>
+  <h1>🦁 Animal World Zoo — Art Asset Catalog</h1>
+  <p>Bộ asset gốc của dự án · Bản đồ vườn thú + 27 icon loài thú</p>
+  <p>Style: Cartoon mascot (Lion làm chuẩn) · Palette ấm muted theo Art Bible</p>
+</header>
+
+<div class="provenance">
+  <h2>📋 Nguồn gốc &amp; Bản quyền (Provenance)</h2>
+  <table>
+    <tr><td>Dự án</td><td>Animal World Zoo (ZooManament) — Unity 6.3 LTS, URP 2D</td></tr>
+    <tr><td>Công cụ tạo</td><td>Ludo AI (qua MCP server <code>mcp__ludo</code>) — createImage / generateWithStyle</td></tr>
+    <tr><td>Ngày tạo</td><td>2026-06-10</td></tr>
+    <tr><td>Định hướng nghệ thuật</td><td>Theo <code>design/art/art-bible.md</code> của dự án (palette, shape language, biome zones)</td></tr>
+    <tr><td>Style anchor</td><td>Icon Lion (request_id <code>awz-animal-icons-anchor-cartoon</code>) — các loài khác tạo bằng generateWithStyle để đồng bộ</td></tr>
+    <tr><td>Định dạng</td><td>PNG-32 (RGBA) — convert từ WebP gốc của Ludo bằng libwebp dwebp 1.4.0</td></tr>
+    <tr><td>Số lượng</td><td>2 bản đồ + 27 icon loài = 29 asset</td></tr>
+  </table>
+  <p class="note">Tài liệu này lưu lại provenance (tool, ngày, request_id, định hướng) làm bằng chứng asset được tạo riêng cho dự án. Prompt gốc và request_id được lưu trong lịch sử phiên làm việc.</p>
+</div>
+
+<section>
+  <h2 class="zone">🗺️ Bản đồ vườn thú (dọc, mở rộng được)</h2>
+  <div class="map-row">
+    <figure class="map-card primary">
+      <img src="Maps/ui_zoo-map_portrait_b.png" alt="Zoo map portrait B">
+      <figcaption>ui_zoo-map_portrait_b.png <span class="badge">CHỌN</span></figcaption>
+    </figure>
+    <figure class="map-card alt">
+      <img src="Maps/ui_zoo-map_portrait_a.png" alt="Zoo map portrait A">
+      <figcaption>ui_zoo-map_portrait_a.png (dự phòng)</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <h2 class="zone">🌾 Trang Trại — Farm</h2>
+  <div class="grid" id="zone-farm"></div>
+</section>
+<section>
+  <h2 class="zone">🦁 Hoang Dã — Wild</h2>
+  <div class="grid" id="zone-wild"></div>
+</section>
+<section>
+  <h2 class="zone">❄️ Băng Giá — Polar</h2>
+  <div class="grid" id="zone-polar"></div>
+</section>
+<section>
+  <h2 class="zone">🦎 Bò Sát — Reptile</h2>
+  <div class="grid" id="zone-reptile"></div>
+</section>
+<section>
+  <h2 class="zone">🌊 Nước — Marine</h2>
+  <div class="grid" id="zone-marine"></div>
+</section>
+
+<footer>
+  <p><strong>Animal World Zoo</strong> · Art asset catalog · Generated 2026-06-10 via Ludo AI.</p>
+  <p>Tất cả đường dẫn ảnh là tương đối tới thư mục này (<code>Assets/Art/UI/</code>). Mở file bằng trình duyệt để xem.</p>
+</footer>
+
+<script>
+  // Data-driven grid: filename slug -> display name, per zone.
+  const ZONES = {
+    'zone-farm':   [['rabbit','Rabbit'],['dog','Dog'],['cat','Cat'],['goat','Goat'],['sheep','Sheep'],['horse','Horse'],['donkey','Donkey'],['alpaca','Alpaca'],['cow','Cow']],
+    'zone-wild':   [['fox','Fox'],['monkey','Monkey'],['raccoon','Raccoon'],['wolf','Wolf'],['zebra','Zebra'],['giraffe','Giraffe'],['rhino','Rhino'],['hippo','Hippo'],['lion','Lion ⭐'],['elephant','Elephant']],
+    'zone-polar':  [['brown-bear','Brown Bear'],['polar-bear','Polar Bear']],
+    'zone-reptile':[['turtle','Turtle'],['python','Python'],['crocodile','Crocodile']],
+    'zone-marine': [['seal','Seal'],['sea-lion','Sea Lion'],['dolphin','Dolphin']]
+  };
+  for (const [id, list] of Object.entries(ZONES)) {
+    const grid = document.getElementById(id);
+    for (const [slug, name] of list) {
+      const file = `Icons/Species/icon_animal-${slug}.png`;
+      const fig = document.createElement('figure');
+      fig.className = 'icon';
+      fig.innerHTML =
+        `<img src="${file}" alt="${name}" loading="lazy">` +
+        `<figcaption><span class="name">${name}</span>` +
+        `<span class="file">icon_animal-${slug}.png</span></figcaption>`;
+      grid.appendChild(fig);
+    }
+  }
+</script>
+</body>
+</html>

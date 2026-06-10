@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Animal World Zoo — Art Vision Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ====== Art Bible design tokens (§7.5) ====== */
+:root{
+  --panel:#F2EBD9; --panel-lift:#F5EFE2; --hud:rgba(43,35,24,.88);
+  --ink:#2A2016; --ink-soft:#6b5b45; --linen-text:#EDE8DC;
+  --gold:#C8992A; --gem:#7B5EA7; --xp:#4A7FA5; --cta:#D48B3A;
+  --positive:#5A9A5F; --danger:#B5413A; --disabled:#B8B0A2;
+  --soil:#8B5E3C; --sage:#7A9E7E; --shadow:rgba(40,28,10,.18);
+  --r-panel:14px; --r-modal:22px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;}
+body{
+  font-family:"Plus Jakarta Sans",system-ui,sans-serif;
+  background:#cdbfa6; color:var(--ink); display:flex; justify-content:center;
+  font-variant-numeric:tabular-nums;
+}
+/* ====== phone frame (mobile portrait) ====== */
+#app{
+  width:100%; max-width:430px; height:100dvh; background:var(--panel);
+  position:relative; display:flex; flex-direction:column; overflow:hidden;
+  box-shadow:0 0 40px rgba(0,0,0,.3);
+}
+/* ====== top HUD bar (§7.1) ====== */
+.hud{
+  background:var(--hud); color:var(--linen-text); padding:10px 12px;
+  display:flex; gap:8px; align-items:center; z-index:30; flex-wrap:wrap;
+}
+.chip{
+  display:flex; align-items:center; gap:5px; background:rgba(255,255,255,.10);
+  border-radius:9999px; padding:5px 11px; font-weight:700; font-size:13px;
+}
+.chip .ic{font-size:15px;}
+.chip.gold .ic{color:var(--gold);} .chip.gem .ic{color:#c9a8ff;}
+.ui-ic{width:19px; height:19px; object-fit:contain; display:inline-block; vertical-align:middle;}
+.care-btn img{width:30px; height:30px; object-fit:contain; filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));}
+.tab .ti img{width:24px; height:24px; object-fit:contain;}
+.tab:not(.active) .ti img{opacity:.55;}
+.xpwrap{flex:1; min-width:120px;}
+.xptop{display:flex; justify-content:space-between; font-size:11px; font-weight:600; margin-bottom:3px;}
+.xpbar{height:12px; background:rgba(255,255,255,.15); border-radius:9999px; overflow:hidden;}
+.xpfill{height:100%; width:0%; background:linear-gradient(90deg,var(--xp),#73a9cf); border-radius:9999px; transition:width .4s;}
+/* ====== content area ====== */
+.body{flex:1; position:relative; overflow:hidden;}
+.screen{position:absolute; inset:0; overflow-y:auto; display:none;}
+.screen.active{display:block;}
+/* --- Map screen: icons sit directly on the map plots --- */
+#map-screen{overflow:auto; background:var(--sage); cursor:grab; touch-action:pan-x pan-y;}
+#map-screen.grabbing{cursor:grabbing;}
+.map-canvas{position:relative; width:100%; container-type:inline-size;}
+.map-bg{display:block; width:100%; height:auto;}
+.map-hint{
+  position:fixed; top:62px; left:14px; z-index:6;
+  color:#fff; font-weight:600; font-size:11px; text-shadow:0 1px 4px rgba(0,0,0,.6);
+  background:rgba(43,35,24,.5); padding:4px 11px; border-radius:9999px; pointer-events:none;
+}
+.plot{position:absolute; transform:translate(-50%,-50%); cursor:pointer; text-align:center; z-index:3;}
+.plot.animal:active{transform:translate(-50%,-50%) scale(.9);}
+.plot.animal img{
+  width:clamp(40px,13cqw,86px); height:clamp(40px,13cqw,86px); object-fit:contain;
+  filter:drop-shadow(0 5px 3px rgba(40,28,10,.5));
+}
+.plot.animal .nm{
+  display:inline-block; margin-top:-5px; font-size:11px; font-weight:700; color:var(--ink);
+  background:rgba(245,239,226,.92); padding:1px 8px; border-radius:9999px; box-shadow:0 1px 3px var(--shadow); white-space:nowrap;
+}
+.plot.animal .mood{position:absolute; top:-8px; right:-4px; font-size:17px; filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));}
+.plot.animal.alert .nm{color:var(--danger);}
+.plot.animal.alert::after{
+  content:""; position:absolute; top:50%; left:50%; width:clamp(48px,14cqw,92px); height:clamp(48px,14cqw,92px);
+  transform:translate(-50%,-50%); border-radius:50%; box-shadow:0 0 0 3px rgba(181,65,58,.45);
+  animation:pulse2 1.2s infinite; pointer-events:none;
+}
+@keyframes pulse2{50%{box-shadow:0 0 0 7px rgba(181,65,58,0);}}
+.plot.empty .ring{
+  width:clamp(34px,10cqw,72px); height:clamp(34px,10cqw,72px); border-radius:50%;
+  border:2px dashed rgba(245,239,226,.9); background:rgba(40,28,10,.18);
+  display:flex; align-items:center; justify-content:center; color:#fff; font-size:24px; font-weight:700;
+}
+.plot.empty:active .ring{transform:scale(.9);}
+/* --- Collection screen --- */
+#animals-screen{background:var(--panel);}
+.coll-head{padding:14px 14px 6px; font-weight:700; font-size:16px;}
+.zone-label{
+  padding:14px 14px 6px; font-weight:600; font-size:13px; color:var(--positive);
+  display:flex; align-items:center; gap:6px;
+}
+.grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:6px 14px;}
+.card{
+  background:var(--panel-lift); border-radius:var(--r-panel); padding:8px 6px; text-align:center;
+  box-shadow:0 2px 6px var(--shadow); position:relative; cursor:pointer; transition:transform .12s;
+}
+.card:active{transform:scale(.95);}
+.card img{width:100%; aspect-ratio:1; object-fit:contain; border-radius:10px;}
+.card.locked img{filter:grayscale(1) brightness(.78) opacity(.6);}
+.card .cn{font-size:12px; font-weight:600; margin-top:3px;}
+.card .lock{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:2px; background:rgba(40,28,10,.30); border-radius:var(--r-panel);
+  color:#fff; font-size:11px; font-weight:700;
+}
+.card .own-badge{position:absolute; top:5px; left:6px; font-size:13px;}
+.card .cost{font-size:10.5px; color:var(--soil); font-weight:600;}
+.card.affordable .cost{color:var(--gold);}
+/* ====== bottom tab bar (§7.1) ====== */
+.tabbar{
+  background:var(--hud); display:flex; z-index:30;
+}
+.tab{
+  flex:1; padding:9px 0 11px; text-align:center; color:rgba(237,232,220,.55);
+  font-size:11px; font-weight:600; cursor:pointer; position:relative;
+}
+.tab .ti{font-size:20px; display:block; margin-bottom:2px;}
+.tab.active{color:var(--linen-text);}
+.tab.active::after{
+  content:""; position:absolute; bottom:4px; left:50%; transform:translateX(-50%);
+  width:42px; height:4px; border-radius:9999px; background:var(--cta);
+}
+/* ====== care modal ====== */
+.scrim{
+  position:absolute; inset:0; background:rgba(40,28,10,.55); z-index:40;
+  display:none; align-items:flex-end; justify-content:center;
+}
+.scrim.open{display:flex;}
+.modal{
+  background:var(--panel-lift); width:100%; max-width:430px; border-radius:var(--r-modal) var(--r-modal) 0 0;
+  padding:18px 18px 26px; box-shadow:0 -4px 20px rgba(0,0,0,.3); animation:slideup .18s ease-out;
+}
+@keyframes slideup{from{transform:translateY(40px);opacity:.4}to{transform:translateY(0);opacity:1}}
+.modal .close{float:right; font-size:22px; color:var(--ink-soft); cursor:pointer; line-height:1;}
+.modal-hero{text-align:center; position:relative;}
+.modal-hero img{width:140px; height:140px; object-fit:contain;}
+.modal-hero .halo{
+  position:absolute; top:50%; left:50%; width:150px; height:150px; transform:translate(-50%,-50%);
+  border-radius:50%; background:radial-gradient(circle,rgba(196,122,43,.45),transparent 70%);
+  opacity:0; pointer-events:none;
+}
+.modal-hero .halo.bloom{animation:bloom 1.3s ease-out;}
+@keyframes bloom{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}25%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)}}
+.modal h2{margin:2px 0 10px; text-align:center; font-size:22px;}
+.stats{display:flex; flex-direction:column; gap:8px; margin:10px 0 16px;}
+.stat{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600;}
+.stat .slbl{width:74px;}
+.meter{flex:1; height:12px; background:#e4dcc8; border-radius:9999px; overflow:hidden;}
+.meter span{display:block; height:100%; border-radius:9999px; transition:width .3s;}
+.care-btns{display:flex; gap:10px; justify-content:center;}
+.care-btn{
+  width:62px; height:62px; border-radius:50%; border:none; background:var(--cta); color:#fff;
+  font-size:24px; cursor:pointer; box-shadow:0 3px 8px var(--shadow); transition:transform .08s;
+  display:flex; align-items:center; justify-content:center; flex-direction:column;
+}
+.care-btn:active{transform:scale(.9);}
+.care-btn small{font-size:9px; font-weight:700; margin-top:1px;}
+/* ====== toast ====== */
+#toast{
+  position:absolute; top:64px; left:50%; transform:translateX(-50%);
+  background:var(--hud); color:var(--linen-text); padding:8px 16px; border-radius:9999px;
+  font-size:13px; font-weight:700; z-index:50; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none;
+}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+.demo-note{font-size:10px; color:var(--ink-soft); text-align:center; padding:8px;}
+.float-gold{position:absolute; color:var(--gold); font-weight:800; font-size:15px; pointer-events:none; animation:floatup .9s ease-out forwards; z-index:45;}
+@keyframes floatup{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-34px)}}
+/* trust badge + thriving glow */
+.plot.animal .trust{position:absolute; top:-9px; left:-7px; font-size:15px; filter:drop-shadow(0 1px 1px rgba(0,0,0,.3)); z-index:2;}
+.plot.animal.thriving::before{content:""; position:absolute; top:50%; left:50%; width:clamp(52px,16cqw,98px); height:clamp(52px,16cqw,98px); transform:translate(-50%,-50%); border-radius:50%; background:radial-gradient(circle,rgba(200,153,42,.4),transparent 70%); animation:thrive 2.6s ease-in-out infinite; pointer-events:none; z-index:-1;}
+@keyframes thrive{50%{opacity:.35}}
+/* quests screen */
+#quests-screen{background:var(--panel);}
+.q-list{padding:10px 14px 24px; display:flex; flex-direction:column; gap:10px;}
+.quest{background:var(--panel-lift); border-radius:var(--r-panel); padding:12px 14px; box-shadow:0 2px 6px var(--shadow); display:flex; gap:10px; align-items:center;}
+.quest .qmain{flex:1; min-width:0;}
+.quest .qt{font-weight:700; font-size:13px;}
+.quest .qbar{height:9px; background:#e4dcc8; border-radius:9999px; overflow:hidden; margin:6px 0 5px;}
+.quest .qbar span{display:block; height:100%; background:var(--positive); border-radius:9999px; transition:width .3s;}
+.quest .qrw{font-size:11.5px; color:var(--soil); font-weight:700; display:flex; gap:10px; align-items:center;}
+.quest .qrw span{display:inline-flex; align-items:center; gap:3px;}
+.quest .qrw img{width:14px; height:14px;}
+.q-btn{border:none; border-radius:9999px; padding:8px 15px; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;}
+.q-btn.claim{background:var(--cta); color:#fff; animation:cta-pulse 1.4s infinite;}
+@keyframes cta-pulse{50%{box-shadow:0 0 0 5px rgba(212,139,58,.25);}}
+.q-btn.done{background:var(--disabled); color:#fff;}
+.q-btn.wip{background:#e4dcc8; color:var(--ink-soft);}
+.tab .badge-n{position:absolute; top:2px; right:24%; background:var(--danger); color:#fff; font-size:9px; font-weight:700; border-radius:9999px; padding:0 5px; min-width:15px; text-align:center;}
+/* reveal overlay (Art Bible State 3) */
+#reveal{position:absolute; inset:0; z-index:60; display:none; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 52%, rgba(196,122,43,.45), rgba(40,28,10,.8)); overflow:hidden; cursor:pointer;}
+#reveal.open{display:flex;}
+#reveal .rv-card{text-align:center; animation:rvpop .5s cubic-bezier(.2,1.3,.5,1); z-index:2;}
+#reveal .rv-card img{width:180px; height:180px; object-fit:contain; filter:drop-shadow(0 8px 16px rgba(0,0,0,.45));}
+#reveal .rv-new{color:#ffe9c2; font-weight:700; font-size:13px; letter-spacing:3px;}
+#reveal .rv-name{color:#fff; font-weight:700; font-size:26px; margin:4px 0 16px;}
+#reveal .rv-tap{color:rgba(255,255,255,.7); font-size:12px;}
+@keyframes rvpop{from{transform:scale(.4); opacity:0}to{transform:scale(1); opacity:1}}
+.spark{position:absolute; width:11px; height:11px; border-radius:50%; background:#ffe9c2; box-shadow:0 0 6px #ffd98a; animation:sparkfly 1.2s ease-out forwards;}
+@keyframes sparkfly{from{opacity:1; transform:translate(0,0) scale(1)}to{opacity:0; transform:translate(var(--dx),var(--dy)) scale(.2)}}
+/* level-up flash */
+#levelflash{position:absolute; inset:0; z-index:55; pointer-events:none; opacity:0; background:radial-gradient(circle, rgba(255,221,150,.6), transparent 70%);}
+#levelflash.go{animation:lflash 1.4s ease-out;}
+@keyframes lflash{0%{opacity:0}15%{opacity:1}100%{opacity:0}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HUD -->
+  <div class="hud">
+    <div class="chip gold"><img class="ui-ic" src="Assets/Art/UI/Icons/UI/icon_ui-coin.png" alt="Gold"><span id="hud-gold">0</span></div>
+    <div class="chip gem"><img class="ui-ic" src="Assets/Art/UI/Icons/UI/icon_ui-gem.png" alt="Gem"><span id="hud-gem">0</span></div>
+    <div class="xpwrap">
+      <div class="xptop"><span id="hud-level">Lv 1</span><span id="hud-xp">0 / 0 XP</span></div>
+      <div class="xpbar"><div class="xpfill" id="hud-xpfill"></div></div>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- ===== MAP SCREEN ===== -->
+    <div class="screen active" id="map-screen">
+      <div class="map-canvas" id="map-canvas">
+        <img class="map-bg" src="Assets/Art/UI/Maps/ui_zoo-map_portrait_b.png" alt="Bản đồ vườn thú" draggable="false">
+        <div class="map-hint">✋ Kéo để di chuyển</div>
+        <div id="plots-layer"></div>
+      </div>
+    </div>
+
+    <!-- ===== COLLECTION SCREEN ===== -->
+    <div class="screen" id="animals-screen">
+      <div class="coll-head">🐾 Bộ sưu tập thú <span id="coll-count" style="font-weight:600;color:var(--ink-soft);font-size:13px;"></span></div>
+      <div id="collection"></div>
+      <div class="demo-note">⚡ Bản demo: tốc độ lên level &amp; giá đã tinh chỉnh nhanh để bạn xem được hết nội dung.</div>
+    </div>
+
+    <!-- ===== QUESTS SCREEN ===== -->
+    <div class="screen" id="quests-screen">
+      <div class="coll-head">📜 Nhiệm vụ</div>
+      <div class="q-list" id="q-list"></div>
+    </div>
+
+    <div id="toast"></div>
+    <div id="levelflash"></div>
+    <div id="reveal" onclick="closeReveal()"></div>
+  </div>
+
+  <!-- bottom tabs -->
+  <div class="tabbar">
+    <div class="tab active" data-screen="map-screen"><span class="ti"><img src="Assets/Art/UI/Icons/UI/icon_ui-tab-map.png" alt=""></span>Vườn thú</div>
+    <div class="tab" data-screen="animals-screen"><span class="ti"><img src="Assets/Art/UI/Icons/UI/icon_ui-tab-paw.png" alt=""></span>Bộ sưu tập</div>
+    <div class="tab" data-screen="quests-screen"><span class="ti"><img src="Assets/Art/UI/Icons/UI/icon_ui-tab-quest.png" alt=""></span>Nhiệm vụ<span class="badge-n" id="quest-badge" style="display:none"></span></div>
+  </div>
+
+  <!-- care modal -->
+  <div class="scrim" id="scrim">
+    <div class="modal" id="modal"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Animal World Zoo — Art Vision Prototype
+   Dùng art Ludo (map + 27 icon). Logic rút gọn để hình dung game.
+   Dữ liệu loài/level gate lấy từ design/gdd/zoo-level.md.
+   ============================================================ */
+const ICON = slug => `Assets/Art/UI/Icons/Species/icon_animal-${slug}.png`;
+const UI = n => `Assets/Art/UI/Icons/UI/icon_ui-${n}.png`;
+const MAP_IMG = "Assets/Art/UI/Maps/ui_zoo-map_portrait_b.png";
+
+// [slug, tên VN, zone, unlockLevel]  — 27 loài
+const SPECIES = [
+  ["rabbit","Thỏ","Trang Trại",1],["dog","Chó","Trang Trại",3],["cat","Mèo","Trang Trại",5],
+  ["goat","Dê","Trang Trại",6],["sheep","Cừu","Trang Trại",8],["horse","Ngựa","Trang Trại",11],
+  ["donkey","Lừa","Trang Trại",13],["alpaca","Lạc đà không bướu","Trang Trại",15],["cow","Bò","Trang Trại",17],
+  ["fox","Cáo","Hoang Dã",20],["monkey","Khỉ","Hoang Dã",23],["raccoon","Gấu mèo","Hoang Dã",25],
+  ["wolf","Sói","Hoang Dã",28],["zebra","Ngựa vằn","Hoang Dã",32],["giraffe","Hươu cao cổ","Hoang Dã",36],
+  ["rhino","Tê giác","Hoang Dã",40],["hippo","Hà mã","Hoang Dã",44],["lion","Sư tử","Hoang Dã",48],
+  ["elephant","Voi","Hoang Dã",54],
+  ["brown-bear","Gấu nâu","Băng Giá",60],["polar-bear","Gấu Bắc Cực","Băng Giá",66],
+  ["turtle","Rùa","Bò Sát",70],["python","Trăn","Bò Sát",74],["crocodile","Cá sấu","Bò Sát",80],
+  ["seal","Hải cẩu","Nước",84],["sea-lion","Sư tử biển","Nước",88],["dolphin","Cá heo","Nước",92],
+];
+const ZONES = ["Trang Trại","Hoang Dã","Băng Giá","Bò Sát","Nước"];
+const ZONE_ICON = {"Trang Trại":"🌾","Hoang Dã":"🦁","Băng Giá":"❄️","Bò Sát":"🦎","Nước":"🌊"};
+
+// demo-tuned economy (accelerated so all content is reachable while playing)
+const adoptCost = lv => Math.round(40 * Math.pow(1.22, lv));
+const goldPerTick = lv => Math.max(1, Math.round(1 + lv*0.6));     // per owned animal per tick
+const XP_CARE = 3, XP_ADOPT = 40;
+const levelXp = lv => Math.round(30 * (lv-1) * lv);                // demo curve; levelXp(1)=0
+
+const state = {
+  gold: 120, gem: 5, xp: 0, careCount: 0, adoptCount: 0, claimed: {},
+  owned: { rabbit: makeAnimal("rabbit") },   // start with starter Rabbit
+};
+function makeAnimal(slug){ return { slug, hunger:70, clean:65, happy:60, trust:0 }; }
+let prevLevel = 1;
+
+// Quests — type: 'own' (species count) | 'level' | 'care' (care taps)
+const QUESTS = [
+  {id:"q1", title:"Chào mừng đến vườn thú", type:"care",  target:5,  gold:80,  xp:30,  gem:0},
+  {id:"q2", title:"Nuôi 3 loài thú",        type:"own",   target:3,  gold:150, xp:60,  gem:1},
+  {id:"q3", title:"Đạt Cấp 5",              type:"level", target:5,  gold:250, xp:0,   gem:1},
+  {id:"q4", title:"Nuôi 6 loài thú",        type:"own",   target:6,  gold:400, xp:120, gem:2},
+  {id:"q5", title:"Chăm sóc 30 lần",        type:"care",  target:30, gold:300, xp:90,  gem:1},
+  {id:"q6", title:"Đạt Cấp 10",             type:"level", target:10, gold:800, xp:0,   gem:3},
+];
+function questProgress(q){
+  if(q.type==="own")   return Object.keys(state.owned).length;
+  if(q.type==="level") return levelFromXp(state.xp);
+  if(q.type==="care")  return state.careCount;
+  return 0;
+}
+
+function levelFromXp(xp){ let lv=1; while(xp >= levelXp(lv+1) && lv<92) lv++; return lv; }
+function bySlug(slug){ return SPECIES.find(s=>s[0]===slug); }
+
+/* ---------- rendering ---------- */
+function render(){
+  const lv = levelFromXp(state.xp);
+  if(lv > prevLevel){ celebrateLevelUp(lv); prevLevel = lv; }
+  // HUD
+  document.getElementById("hud-gold").textContent = Math.floor(state.gold).toLocaleString();
+  document.getElementById("hud-gem").textContent = state.gem;
+  document.getElementById("hud-level").textContent = "Lv " + lv;
+  const cur = levelXp(lv), next = lv>=92?cur:levelXp(lv+1);
+  const pct = lv>=92?100:Math.round((state.xp-cur)/(next-cur)*100);
+  document.getElementById("hud-xp").textContent = lv>=92 ? "MAX" : `${Math.floor(state.xp-cur)} / ${next-cur} XP`;
+  document.getElementById("hud-xpfill").style.width = pct + "%";
+
+  renderMap();
+  renderCollection(lv);
+  renderQuests();
+  updateQuestBadge();
+}
+
+function moodEmoji(a){ const avg=(a.hunger+a.clean+a.happy)/3; return avg>70?"😄":avg>45?"🙂":avg>25?"😟":"😣"; }
+
+// Plot centres as % of the map image (768x1344). Matched to the real pens.
+const PLOTS = [
+  {x:50,y:15},   // big top teal pen (right of barn)
+  {x:16,y:26},   // teal pen left
+  {x:32,y:30},   // teal pen mid
+  {x:24,y:38},   // teal pen lower
+  {x:72,y:26},   // brown pen upper-right
+  {x:77,y:40},   // brown pen right-lower
+  {x:19,y:56},   // big tan pen left-middle
+  {x:27,y:82},   // brown pen lower-left
+];
+function renderMap(){
+  const layer = document.getElementById("plots-layer");
+  layer.innerHTML = "";
+  const owned = Object.values(state.owned);
+  PLOTS.forEach((p,i)=>{
+    const el = document.createElement("div");
+    el.style.left = p.x+"%"; el.style.top = p.y+"%";
+    if(i < owned.length){
+      const a = owned[i]; const sp = bySlug(a.slug);
+      const low = (a.hunger<30||a.clean<30||a.happy<30);
+      el.className = "plot animal" + (low?" alert":"") + (a.trust>=68?" thriving":"");
+      el.innerHTML =
+        `<div class="mood">${moodEmoji(a)}</div>`+
+        (a.trust>=68?`<div class="trust">⭐</div>`:``)+
+        `<img src="${ICON(a.slug)}" alt="${sp[1]}" draggable="false">`+
+        `<div class="nm">${sp[1]}</div>`;
+      el.onclick = ()=>openCare(a.slug);
+    } else {
+      el.className = "plot empty";
+      el.innerHTML = `<div class="ring">+</div>`;
+      el.onclick = ()=>document.querySelector('.tab[data-screen="animals-screen"]').click();
+    }
+    layer.appendChild(el);
+  });
+}
+
+function renderCollection(lv){
+  const root = document.getElementById("collection");
+  root.innerHTML="";
+  const ownedCount = Object.keys(state.owned).length;
+  document.getElementById("coll-count").textContent = `(${ownedCount}/${SPECIES.length})`;
+  ZONES.forEach(zone=>{
+    const list = SPECIES.filter(s=>s[2]===zone);
+    const zl=document.createElement("div"); zl.className="zone-label";
+    zl.innerHTML = `${ZONE_ICON[zone]} ${zone}`;
+    root.appendChild(zl);
+    const grid=document.createElement("div"); grid.className="grid";
+    list.forEach(sp=>{
+      const [slug,name,,reqLv]=sp;
+      const owned = !!state.owned[slug];
+      const unlocked = lv>=reqLv;
+      const cost = adoptCost(reqLv);
+      const afford = state.gold>=cost;
+      const card=document.createElement("div");
+      card.className="card"+(owned?" owned":(unlocked?(afford?" affordable":""):" locked"));
+      let inner = `<img src="${ICON(slug)}" alt="${name}"><div class="cn">${name}</div>`;
+      if(owned){ inner += `<div class="own-badge">⭐</div>`; }
+      else if(!unlocked){ inner += `<div class="lock">🔒<span>Lv ${reqLv}</span></div>`; }
+      else { inner += `<div class="cost">🪙 ${cost.toLocaleString()}</div>`; }
+      card.innerHTML = inner;
+      card.onclick = ()=>{
+        if(owned) openCare(slug);
+        else if(!unlocked) toast(`🔒 Cần đạt Lv ${reqLv}`);
+        else tryAdopt(slug,cost);
+      };
+      grid.appendChild(card);
+    });
+    root.appendChild(grid);
+  });
+}
+
+/* ---------- actions ---------- */
+function tryAdopt(slug,cost){
+  if(state.gold<cost){ toast("Không đủ Gold"); return; }
+  state.gold-=cost; state.xp+=XP_ADOPT; state.adoptCount++; state.owned[slug]=makeAnimal(slug);
+  showReveal(slug);          // Art Bible State 3 — adoption reveal
+  render();
+}
+
+let careSlug=null;
+function openCare(slug){
+  careSlug=slug; const a=state.owned[slug]; const sp=bySlug(slug);
+  const m=document.getElementById("modal");
+  const bar=(v,c)=>`<div class="meter"><span style="width:${v}%;background:${c}"></span></div>`;
+  m.innerHTML =
+    `<span class="close" onclick="closeCare()">✕</span>`+
+    `<div class="modal-hero"><div class="halo" id="halo"></div><img src="${ICON(slug)}" alt="${sp[1]}"></div>`+
+    `<h2>${sp[1]}</h2>`+
+    `<div class="stats">`+
+      `<div class="stat"><span class="slbl">🍖 No bụng</span>${bar(a.hunger,'var(--positive)')}</div>`+
+      `<div class="stat"><span class="slbl">🛁 Sạch sẽ</span>${bar(a.clean,'var(--xp)')}</div>`+
+      `<div class="stat"><span class="slbl">❤️ Vui vẻ</span>${bar(a.happy,'var(--cta)')}</div>`+
+    `</div>`+
+    `<div class="care-btns">`+
+      `<button class="care-btn" onclick="doCare('hunger')"><img src="Assets/Art/UI/Icons/UI/icon_ui-feed.png" alt=""><small>Cho ăn</small></button>`+
+      `<button class="care-btn" onclick="doCare('clean')"><img src="Assets/Art/UI/Icons/UI/icon_ui-bath.png" alt=""><small>Tắm</small></button>`+
+      `<button class="care-btn" onclick="doCare('happy')"><img src="Assets/Art/UI/Icons/UI/icon_ui-play.png" alt=""><small>Chơi</small></button>`+
+    `</div>`;
+  document.getElementById("scrim").classList.add("open");
+}
+function closeCare(){ document.getElementById("scrim").classList.remove("open"); careSlug=null; }
+function doCare(stat){
+  const a=state.owned[careSlug]; if(!a) return;
+  a[stat]=Math.min(100,a[stat]+22);
+  a.trust=Math.min(100,a.trust+4);
+  state.careCount++; state.xp+=XP_CARE; state.gold+=2;
+  const halo=document.getElementById("halo"); halo.classList.remove("bloom"); void halo.offsetWidth; halo.classList.add("bloom");
+  openCare(careSlug);                 // refresh meters
+  document.getElementById("scrim").classList.add("open");
+  render();
+}
+
+/* ---------- loops & misc ---------- */
+function tick(){
+  // passive gold from owned animals + slow needs decay
+  let lv=levelFromXp(state.xp);
+  Object.values(state.owned).forEach(a=>{
+    state.gold += goldPerTick(lv)/Object.keys(state.owned).length;
+    a.hunger=Math.max(0,a.hunger-0.6); a.clean=Math.max(0,a.clean-0.4); a.happy=Math.max(0,a.happy-0.5);
+  });
+  render();
+}
+let _t=null;
+function toast(msg){
+  const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(_t); _t=setTimeout(()=>t.classList.remove("show"),1700);
+}
+
+/* ---------- quests ---------- */
+function renderQuests(){
+  const root=document.getElementById("q-list"); if(!root) return; root.innerHTML="";
+  QUESTS.forEach(q=>{
+    const prog=Math.min(questProgress(q),q.target);
+    const done=prog>=q.target, claimed=!!state.claimed[q.id];
+    const pct=Math.round(prog/q.target*100);
+    const rw=`<div class="qrw">`+
+      (q.gold?`<span><img src="${UI('coin')}">${q.gold}</span>`:``)+
+      (q.xp?`<span><img src="${UI('xp')}">${q.xp}</span>`:``)+
+      (q.gem?`<span><img src="${UI('gem')}">${q.gem}</span>`:``)+`</div>`;
+    const btn = claimed?`<button class="q-btn done">✓ Đã nhận</button>`
+      : done?`<button class="q-btn claim" onclick="claimQuest('${q.id}')">Nhận</button>`
+      : `<button class="q-btn wip">${prog}/${q.target}</button>`;
+    const div=document.createElement("div"); div.className="quest";
+    div.innerHTML=`<div class="qmain"><div class="qt">${q.title}</div>`+
+      `<div class="qbar"><span style="width:${pct}%"></span></div>${rw}</div>${btn}`;
+    root.appendChild(div);
+  });
+}
+function claimQuest(id){
+  const q=QUESTS.find(x=>x.id===id); if(!q||state.claimed[id]||questProgress(q)<q.target) return;
+  state.claimed[id]=true;
+  state.gold+=q.gold||0; state.xp+=q.xp||0; state.gem+=q.gem||0;
+  toast(`🎁 ${q.title} — đã nhận thưởng`);
+  render();
+}
+function updateQuestBadge(){
+  const n=QUESTS.filter(q=>!state.claimed[q.id] && questProgress(q)>=q.target).length;
+  const b=document.getElementById("quest-badge"); if(!b) return;
+  if(n>0){ b.textContent=n; b.style.display="block"; } else b.style.display="none";
+}
+
+/* ---------- adoption reveal (Art Bible State 3) ---------- */
+function showReveal(slug){
+  const sp=bySlug(slug), rv=document.getElementById("reveal");
+  rv.innerHTML=`<div class="rv-card"><div class="rv-new">LOÀI MỚI</div>`+
+    `<img src="${ICON(slug)}" alt="${sp[1]}"><div class="rv-name">${sp[1]}</div>`+
+    `<div class="rv-tap">Chạm để tiếp tục</div></div>`;
+  for(let i=0;i<18;i++){
+    const s=document.createElement("div"); s.className="spark";
+    const ang=(i/18)*Math.PI*2, d=95+(i%3)*32;
+    s.style.left="50%"; s.style.top="48%";
+    s.style.setProperty("--dx",(Math.cos(ang)*d).toFixed(0)+"px");
+    s.style.setProperty("--dy",(Math.sin(ang)*d).toFixed(0)+"px");
+    s.style.animationDelay=(i*18)+"ms"; rv.appendChild(s);
+  }
+  rv.classList.add("open");
+}
+function closeReveal(){ document.getElementById("reveal").classList.remove("open"); }
+
+/* ---------- level-up celebration ---------- */
+function celebrateLevelUp(lv){
+  const f=document.getElementById("levelflash");
+  f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
+  toast(`⬆️ Lên Cấp ${lv}!`);
+}
+
+/* ---------- offline / welcome-back ---------- */
+const SAVE_KEY="awz_lastseen";
+function offlineCheck(){
+  const last=parseFloat(localStorage.getItem(SAVE_KEY)||"0"), now=Date.now();
+  if(last>0){
+    const secs=Math.min((now-last)/1000, 8*3600); // cap 8h
+    if(secs>20){
+      const lv=levelFromXp(state.xp);
+      const earned=Math.round(goldPerTick(lv)*secs*0.5); // 50% of active rate while away
+      if(earned>0) showOffline(earned, secs);
+    }
+  }
+  localStorage.setItem(SAVE_KEY, now);
+}
+function showOffline(gold,secs){
+  const mins=Math.max(1,Math.round(secs/60));
+  document.getElementById("modal").innerHTML=
+    `<div style="text-align:center">`+
+    `<img src="${UI('gift')}" style="width:92px;height:92px;object-fit:contain">`+
+    `<h2 style="margin:6px 0">Chào mừng quay lại!</h2>`+
+    `<p style="color:var(--ink-soft);font-size:13px;margin:0 0 6px">Vườn thú vẫn chạy ~${mins} phút khi bạn vắng mặt.</p>`+
+    `<div style="font-size:21px;font-weight:800;color:var(--gold);margin:6px 0 14px">`+
+      `<img src="${UI('coin')}" style="width:23px;height:23px;vertical-align:middle"> +${gold.toLocaleString()}</div>`+
+    `<button class="q-btn claim" style="padding:11px 30px" onclick="claimOffline(${gold})">Nhận thưởng</button></div>`;
+  document.getElementById("scrim").classList.add("open");
+}
+function claimOffline(g){
+  state.gold+=g; document.getElementById("scrim").classList.remove("open");
+  toast(`+${g.toLocaleString()} Gold`); render();
+}
+// tabs
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.screen).classList.add("active");
+  };
+});
+document.getElementById("scrim").onclick=e=>{ if(e.target.id==="scrim") closeCare(); };
+
+// drag-to-pan the map (desktop mouse; mobile pans natively via touch scroll)
+(function(){
+  const sc=document.getElementById("map-screen");
+  let down=false,sx,sy,sl,st,moved=false;
+  sc.addEventListener("mousedown",e=>{down=true;moved=false;sx=e.clientX;sy=e.clientY;sl=sc.scrollLeft;st=sc.scrollTop;sc.classList.add("grabbing");});
+  window.addEventListener("mousemove",e=>{ if(!down)return; const dx=e.clientX-sx,dy=e.clientY-sy; if(Math.abs(dx)+Math.abs(dy)>4)moved=true; sc.scrollLeft=sl-dx; sc.scrollTop=st-dy; });
+  window.addEventListener("mouseup",()=>{down=false;sc.classList.remove("grabbing");});
+  sc.addEventListener("click",e=>{ if(moved){e.stopPropagation();e.preventDefault();} },true); // ignore click after a drag
+})();
+
+render();
+offlineCheck();                                   // welcome-back rewards on load
+setInterval(tick, 1000);
+setInterval(()=>localStorage.setItem(SAVE_KEY, Date.now()), 10000);
+window.addEventListener("beforeunload",()=>localStorage.setItem(SAVE_KEY, Date.now()));
+</script>
+</body>
+</html>
