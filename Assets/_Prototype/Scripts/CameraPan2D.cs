@@ -15,12 +15,41 @@ namespace AWZ.Proto
         private Camera _cam;
         private Vector3 _lastMouse;
         private bool _dragging;
+        private int _lastScreenW;
+        private int _lastScreenH;
 
-        private void Awake() => _cam = GetComponent<Camera>();
+        private void Awake()
+        {
+            _cam = GetComponent<Camera>();
+            ApplyFit();
+            Clamp();
+        }
+
+        /// <summary>
+        /// Contain-fit: pick the smallest orthographic size that still shows the WHOLE map
+        /// on the current screen aspect, so the entire zoo is visible on every device
+        /// (portrait phone, tablet, WebGL window) instead of an aspect-dependent crop.
+        /// </summary>
+        private void ApplyFit()
+        {
+            if (_cam == null || !_cam.orthographic) return;
+            float byHeight = mapHalf.y;
+            float byWidth  = mapHalf.x / Mathf.Max(0.0001f, _cam.aspect);
+            _cam.orthographicSize = Mathf.Max(byHeight, byWidth);
+        }
 
         private void Update()
         {
             if (_cam == null) return;
+
+            // Re-fit only when the screen size actually changes (rotation / resize / window).
+            if (Screen.width != _lastScreenW || Screen.height != _lastScreenH)
+            {
+                _lastScreenW = Screen.width;
+                _lastScreenH = Screen.height;
+                ApplyFit();
+                Clamp();
+            }
 
             if (Input.GetMouseButtonDown(0)) { _lastMouse = Input.mousePosition; _dragging = true; }
             else if (Input.GetMouseButtonUp(0)) { _dragging = false; }

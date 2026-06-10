@@ -305,7 +305,12 @@ namespace AWZ.UI
             }
 
             panel.scaleMode           = PanelScaleMode.ScaleWithScreenSize;
-            panel.referenceResolution = new Vector2Int(1080, 1920);
+            // Every font/size in this UI is authored in points for a ~430pt-wide phone
+            // (fonts 9–18, nav 60, pens ~110). A 1080-wide reference rendered all of it
+            // ~2.5x too small on a real high-DPI device. Match width (match=0) so columns
+            // keep their proportions across portrait aspect ratios.
+            panel.referenceResolution = new Vector2Int(430, 932);
+            panel.match               = 0f;
             panel.sortingOrder        = 0;
 
             _document.panelSettings = panel;
@@ -314,7 +319,12 @@ namespace AWZ.UI
             ApplyFallbackFont(_root);
 
             _root.style.flexDirection   = FlexDirection.Column;
-            _root.style.backgroundColor = ColBg;
+            // Transparent root: this UIDocument is a HUD overlay so the world-space zoo
+            // (rendered by the scene camera) shows through. Opaque areas — the HUD bar,
+            // the nav bar, and the non-Zoo tab body — are painted by those elements
+            // themselves. pickingMode.Ignore stops the empty root from eating taps.
+            _root.style.backgroundColor = Color.clear;
+            _root.pickingMode           = PickingMode.Ignore;
             _root.style.width           = new StyleLength(new Length(100f, LengthUnit.Percent));
             _root.style.height          = new StyleLength(new Length(100f, LengthUnit.Percent));
 
@@ -680,6 +690,11 @@ namespace AWZ.UI
         private void RebuildCurrentTab()
         {
             _bodyScroll.Clear();
+
+            // Zoo tab is left transparent so the world-space zoo (scene camera) shows
+            // through the HUD overlay. Every other tab is a full opaque screen.
+            _bodyScroll.style.backgroundColor = _activeTab == Tab.Zoo ? Color.clear : ColBg;
+
             switch (_activeTab)
             {
                 case Tab.Zoo:        BuildZooTab();        break;
@@ -782,51 +797,15 @@ namespace AWZ.UI
             statsStrip.Add(MakeStatsChip($"{happy:0}%",   "Happy"));
             _bodyScroll.Add(statsStrip);
 
-            // ── Map canvas: Ludo top-down zoo art as the background. ──────────
-            // Height is corrected on layout to preserve the 768x1344 image aspect so the
-            // percent-positioned pens land exactly on the painted enclosures.
-            var mapCanvas = new VisualElement();
-            mapCanvas.style.position    = Position.Relative;
-            mapCanvas.style.width       = new StyleLength(new Length(100f, LengthUnit.Percent));
-            mapCanvas.style.height      = 600; // provisional; set precisely in the layout callback
-            mapCanvas.style.marginLeft  = 6;
-            mapCanvas.style.marginRight = 6;
-            mapCanvas.style.marginBottom = 8;
-            mapCanvas.style.overflow    = Overflow.Visible;
+            // ── Zoo world view ───────────────────────────────────────────────
+            // The living zoo (map background + animals) is rendered in WORLD SPACE by the
+            // scene camera (CameraPan2D). This UI Toolkit panel is only a transparent HUD
+            // overlay, so the Zoo-tab body is left clear and the world shows through.
+            // No map is drawn here: the old UI Toolkit map duplicated the world and could
+            // never stay aligned with it across aspect ratios. World interactivity
+            // (tap an animal in-world) is a later phase — for now care routes via tabs.
 
-            var mapTex = GetTex("map");
-            if (mapTex != null)
-            {
-                mapCanvas.style.backgroundImage          = new StyleBackground(mapTex);
-                mapCanvas.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
-            }
-            else
-            {
-                mapCanvas.style.backgroundColor = ColGround;
-            }
-
-            const float MapAspect = 1344f / 768f; // portrait map ratio
-            mapCanvas.RegisterCallback<GeometryChangedEvent>(_ =>
-            {
-                float w = mapCanvas.resolvedStyle.width;
-                if (w <= 1f) return;
-                float target = w * MapAspect;
-                if (Mathf.Abs(mapCanvas.resolvedStyle.height - target) > 1f)
-                    mapCanvas.style.height = target;
-            });
-
-            // ── Animals on their painted enclosures (percent of the map image) ──
-            int slotIdx = 0;
-            foreach (string speciesKey in _state.OwnedSpecies)
-            {
-                if (slotIdx >= PenPct.Length) break;
-                var (leftPct, topPct) = PenPct[slotIdx++];
-                mapCanvas.Add(MakePenOnMap(speciesKey, leftPct, topPct));
-            }
-
-            _bodyScroll.Add(mapCanvas);
-
-            // ── Hint label under the map ─────────────────────────────────────
+            // ── Hint label ───────────────────────────────────────────────────
             var hint = new Label("Tap Animals to care · Attract to build attractions");
             hint.style.fontSize       = 12;
             hint.style.color          = ColTextLight;
