@@ -85,7 +85,7 @@ namespace AWZ.UI
         // Theme colours (light / warm palette) ──────────────────────────────
         private static readonly Color ColBg          = new Color(0.984f, 0.953f, 0.902f, 1f);   // #FBF3E6
         private static readonly Color ColCardBg      = new Color(1.000f, 1.000f, 1.000f, 1f);   // white
-        private static readonly Color ColCardBorder  = new Color(0.859f, 0.906f, 0.843f, 1f);   // soft green tint border
+        private static readonly Color ColCardBorder  = new Color(0.639f, 0.831f, 0.894f, 1f);   // light teal-blue border (matches header/footer)
         private static readonly Color ColAdoptRow    = new Color(0.973f, 0.988f, 0.969f, 1f);   // very pale green
         private static readonly Color ColHudPill     = new Color(1.000f, 1.000f, 1.000f, 1f);   // white pill
         private static readonly Color ColHudBg       = new Color(0.976f, 0.941f, 0.886f, 1f);   // warm cream hud area
@@ -118,6 +118,8 @@ namespace AWZ.UI
         private static readonly Color ColCoinIcon    = new Color(0.949f, 0.698f, 0.157f, 1f);  // gold
         private static readonly Color ColGemIcon     = new Color(0.298f, 0.659f, 0.859f, 1f);  // teal-blue
         private static readonly Color ColStarIcon    = new Color(0.965f, 0.741f, 0.208f, 1f);  // amber
+        private static readonly Color ColBarBlue     = new Color(0.231f, 0.654f, 0.776f, 1f);  // header/footer bar teal-blue
+        private static readonly Color ColBarBlueDark = new Color(0.176f, 0.533f, 0.643f, 1f);  // bar bottom lip
 
         // ── Lifecycle ────────────────────────────────────────────────────────
         private void Awake()
@@ -578,10 +580,15 @@ namespace AWZ.UI
             float left   = (safe.xMin)      / sw * rootW; // left cutout (landscape)
             float right  = (sw - safe.xMax) / sw * rootW; // right cutout
 
-            _root.style.paddingTop    = Mathf.Max(0f, top);
-            _root.style.paddingBottom = Mathf.Max(0f, bottom);
+            // Top/bottom safe insets fold INTO the header/footer so those bars extend full-bleed
+            // under the notch & home indicator (no transparent gap). Root only handles side cutouts.
+            _root.style.paddingTop    = 0;
+            _root.style.paddingBottom = 0;
             _root.style.paddingLeft   = Mathf.Max(0f, left);
             _root.style.paddingRight  = Mathf.Max(0f, right);
+
+            if (_hudBar != null) _hudBar.style.paddingTop    = Mathf.Max(0f, top) + 10f;
+            if (_navBar != null) _navBar.style.paddingBottom = Mathf.Max(0f, bottom) + 6f;
         }
 
         /// <summary>
@@ -609,9 +616,15 @@ namespace AWZ.UI
             if (float.IsNaN(hudBottomPx) || float.IsNaN(navTopPx)) return;
             if (navTopPx - hudBottomPx < 10f) return; // not laid out yet / degenerate
 
+            // Bars are square-edged and full-bleed, so the map band is exactly between them.
+            // A 1px overlap behind each bar avoids any sub-pixel seam without leaking the map.
+            float overlap   = 1f * scale;
+            float bandTopPx = Mathf.Max(0f, hudBottomPx - overlap);
+            float bandBotPx = Mathf.Min(sh,  navTopPx   + overlap);
+
             // Normalised viewport rect (origin bottom-left, y up).
-            float yMax = 1f - hudBottomPx / sh; // just under the header
-            float yMin = 1f - navTopPx    / sh; // just above the footer
+            float yMax = Mathf.Clamp01(1f - bandTopPx / sh);
+            float yMin = Mathf.Clamp01(1f - bandBotPx / sh);
             float h    = yMax - yMin;
             if (h <= 0.02f || h > 1f) return;
 
@@ -623,12 +636,16 @@ namespace AWZ.UI
         private void BuildHud()
         {
             _hudBar = new VisualElement();
-            _hudBar.style.backgroundColor = ColHudBg;
             _hudBar.style.flexDirection   = FlexDirection.Column;
-            _hudBar.style.paddingLeft     = 14;
-            _hudBar.style.paddingRight    = 14;
-            _hudBar.style.paddingTop      = 8;
-            _hudBar.style.paddingBottom   = 6;
+            _hudBar.style.paddingLeft     = 16;
+            _hudBar.style.paddingRight    = 16;
+            _hudBar.style.paddingTop      = 10; // overridden by ApplySafeArea (+ notch inset)
+            _hudBar.style.paddingBottom   = 12;
+            // Full-bleed blue header bar (covers the notch). Square bottom edge so it sits flush
+            // against the map — no rounded corners leaking the map through.
+            _hudBar.style.backgroundColor   = ColBarBlue;
+            _hudBar.style.borderBottomWidth = 3;
+            _hudBar.style.borderBottomColor = ColBarBlueDark;
 
             var pillRow = new VisualElement();
             pillRow.style.flexDirection  = FlexDirection.Row;
@@ -636,15 +653,15 @@ namespace AWZ.UI
             pillRow.style.justifyContent = Justify.SpaceBetween;
 
             var goldPill = MakeHudPill();
-            goldPill.Add(AwzIcons.Make(AwzIcons.Kind.Coin, 22f, ColCoinIcon));
+            goldPill.Add(AwzGui.Icon("ic_coin", 26f));
             goldPill.Add(MakePillValueColumn(out _lblGold, "GOLD"));
 
             var gemPill = MakeHudPill();
-            gemPill.Add(AwzIcons.Make(AwzIcons.Kind.Gem, 22f, ColGemIcon));
+            gemPill.Add(AwzGui.Icon("ic_gem", 26f));
             gemPill.Add(MakePillValueColumn(out _lblGems, "GEMS"));
 
             var lvlPill = MakeHudPill();
-            lvlPill.Add(AwzIcons.Make(AwzIcons.Kind.Star, 22f, ColStarIcon));
+            lvlPill.Add(AwzGui.Icon("ic_star", 26f));
             lvlPill.Add(MakePillValueColumn(out _lblLevel, "ZOO"));
 
             pillRow.Add(goldPill);
@@ -672,7 +689,7 @@ namespace AWZ.UI
 
             _lblXp = new Label("Lv 1  ·  0 XP  ·  Lv 2");
             _lblXp.style.fontSize       = 9;
-            _lblXp.style.color          = ColTextMid;
+            _lblXp.style.color          = new Color(1f, 1f, 1f, 0.9f); // on blue header
             _lblXp.style.marginBottom   = 2;
             _lblXp.style.unityTextAlign = TextAnchor.UpperCenter;
             xpSection.Add(_lblXp);
@@ -754,8 +771,9 @@ namespace AWZ.UI
         private static Label MakeStatLabel(string text)
         {
             var lbl = new Label(text);
-            lbl.style.fontSize = 11;
-            lbl.style.color    = ColTextMid;
+            lbl.style.fontSize                = 11;
+            lbl.style.color                   = Color.white;       // on the blue header panel
+            lbl.style.unityFontStyleAndWeight = FontStyle.Bold;
             return lbl;
         }
 
@@ -765,7 +783,7 @@ namespace AWZ.UI
             _bodyScroll = new ScrollView(ScrollViewMode.Vertical);
             _bodyScroll.style.flexGrow      = 1;
             _bodyScroll.style.paddingTop    = 8;
-            _bodyScroll.style.paddingBottom = 68; // above nav bar
+            _bodyScroll.style.paddingBottom = 12; // nav is now in-flow below the body, no overlap
             _root.Add(_bodyScroll);
         }
 
@@ -775,11 +793,15 @@ namespace AWZ.UI
             var nav = _navBar = new VisualElement();
             nav.style.flexDirection   = FlexDirection.Row;
             nav.style.alignItems      = Align.Stretch;
-            nav.style.backgroundColor = ColNavBg;
-            nav.style.borderTopWidth  = 1;
-            nav.style.borderTopColor  = ColNavBorder;
-            nav.style.height          = 60;
+            nav.style.minHeight       = 58;
             nav.style.flexShrink      = 0;
+            nav.style.paddingTop      = 4;
+            nav.style.paddingBottom   = 6; // overridden by ApplySafeArea (+ home-indicator inset)
+            // Full-bleed blue footer bar (covers the home indicator). Square top edge so it sits
+            // flush against the map.
+            nav.style.backgroundColor = ColBarBlue;
+            nav.style.borderTopWidth  = 3;
+            nav.style.borderTopColor  = ColBarBlueDark;
 
             for (int i = 0; i < NavDefs.Length; i++)
             {
@@ -797,13 +819,13 @@ namespace AWZ.UI
         }
 
         // Tab definitions aligned to the Tab enum order. Icons are mono vector glyphs.
-        private static readonly (string Label, AwzIcons.Kind Icon)[] NavDefs =
+        private static readonly (string Label, string Icon)[] NavDefs =
         {
-            ("Zoo",        AwzIcons.Kind.Zoo),
-            ("Animals",    AwzIcons.Kind.Animals),
-            ("Attract",    AwzIcons.Kind.Attract),
-            ("Activities", AwzIcons.Kind.Activities),
-            ("Shop",       AwzIcons.Kind.Shop),
+            ("Zoo",        "ic_zoo"),
+            ("Animals",    "ic_animals"),
+            ("Attract",    "ic_attract"),
+            ("Activities", "ic_activities"),
+            ("Shop",       "ic_shop"),
         };
 
         /// <summary>
@@ -838,19 +860,19 @@ namespace AWZ.UI
         private static void PopulateNav(Button btn, int index, bool active)
         {
             btn.Clear();
-            btn.style.backgroundColor = active
-                ? new Color(0.216f, 0.718f, 0.420f, 0.10f)
-                : Color.clear;
+            // Selected tab = translucent white "pill" behind the icon/label on the blue bar.
+            btn.style.backgroundColor = active ? new Color(1f, 1f, 1f, 0.22f) : Color.clear;
+            SetRadius(btn, active ? 16f : 0f);
 
-            Color tint = active ? ColNavActive : ColNavInactive;
-
-            var icon = AwzIcons.Make(NavDefs[index].Icon, 24f, tint);
+            // Colourful pack icon (not tintable) — convey active/inactive via opacity + label.
+            var icon = AwzGui.Icon(NavDefs[index].Icon, 28f);
             icon.style.marginBottom = 2;
+            icon.style.opacity      = active ? 1f : 0.6f;
             btn.Add(icon);
 
             var lbl = new Label(NavDefs[index].Label);
             lbl.style.fontSize                = 10;
-            lbl.style.color                   = tint;
+            lbl.style.color                   = active ? Color.white : new Color(1f, 1f, 1f, 0.7f);
             lbl.style.unityFontStyleAndWeight = active ? FontStyle.Bold : FontStyle.Normal;
             lbl.style.unityTextAlign          = TextAnchor.UpperCenter;
             btn.Add(lbl);
@@ -858,14 +880,14 @@ namespace AWZ.UI
             if (active)
             {
                 var dot = new VisualElement();
-                dot.style.width                   = 4;
-                dot.style.height                  = 4;
-                dot.style.backgroundColor         = ColNavActive;
-                dot.style.borderTopLeftRadius     = 2;
-                dot.style.borderTopRightRadius    = 2;
-                dot.style.borderBottomLeftRadius  = 2;
-                dot.style.borderBottomRightRadius = 2;
-                dot.style.marginTop               = 2;
+                dot.style.width                   = 5;
+                dot.style.height                  = 5;
+                dot.style.backgroundColor         = Color.white;
+                dot.style.borderTopLeftRadius     = 3;
+                dot.style.borderTopRightRadius    = 3;
+                dot.style.borderBottomLeftRadius  = 3;
+                dot.style.borderBottomRightRadius = 3;
+                dot.style.marginTop               = 3;
                 btn.Add(dot);
             }
         }
@@ -1173,6 +1195,38 @@ namespace AWZ.UI
             return row;
         }
 
+        /// <summary>Summary row with a leading pack icon (e.g. coin/gem) + label and a value.</summary>
+        private static VisualElement MakeCurrencyRow(string iconName, string label, string value)
+        {
+            var row = new VisualElement();
+            row.style.flexDirection  = FlexDirection.Row;
+            row.style.justifyContent = Justify.SpaceBetween;
+            row.style.alignItems     = Align.Center;
+            row.style.marginBottom   = 6;
+
+            var left = new VisualElement();
+            left.style.flexDirection = FlexDirection.Row;
+            left.style.alignItems    = Align.Center;
+
+            var icon = AwzGui.Icon(iconName, 24f);
+            icon.style.marginRight = 8;
+            left.Add(icon);
+
+            var lbl = new Label(label);
+            lbl.style.fontSize = 13;
+            lbl.style.color    = ColTextMid;
+            left.Add(lbl);
+
+            var val = new Label(value);
+            val.style.fontSize                = 14;
+            val.style.color                   = ColTextDark;
+            val.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+            row.Add(left);
+            row.Add(val);
+            return row;
+        }
+
         // ════════════════════════════════════════════════════════════════════
         // TAB: Animals  (care + adopt — original content)
         // ════════════════════════════════════════════════════════════════════
@@ -1413,7 +1467,7 @@ namespace AWZ.UI
             var row = new VisualElement();
             row.style.flexDirection              = FlexDirection.Row;
             row.style.alignItems                 = Align.Center;
-            row.style.backgroundColor            = ColAdoptRow;
+            AwzGui.Panel9(row, "panel_round", 128, 0.12f, ColAdoptRow);
             row.style.borderTopLeftRadius        = 10;
             row.style.borderTopRightRadius       = 10;
             row.style.borderBottomLeftRadius     = 10;
@@ -1543,7 +1597,7 @@ namespace AWZ.UI
             var row = new VisualElement();
             row.style.flexDirection              = FlexDirection.Row;
             row.style.alignItems                 = Align.Center;
-            row.style.backgroundColor            = ColCardBg;
+            AwzGui.Panel9(row, "panel_round", 128, 0.12f, ColCardBg);
             row.style.borderTopLeftRadius        = 10;
             row.style.borderTopRightRadius       = 10;
             row.style.borderBottomLeftRadius     = 10;
@@ -1685,7 +1739,7 @@ namespace AWZ.UI
             var row = new VisualElement();
             row.style.flexDirection              = FlexDirection.Row;
             row.style.alignItems                 = Align.Center;
-            row.style.backgroundColor            = ColCardBg;
+            AwzGui.Panel9(row, "panel_round", 128, 0.12f, ColCardBg);
             row.style.borderTopLeftRadius        = 10;
             row.style.borderTopRightRadius       = 10;
             row.style.borderBottomLeftRadius     = 10;
@@ -1797,8 +1851,8 @@ namespace AWZ.UI
             long gold = _currency.Balance(CurrencyType.Gold);
             long gems = _currency.Balance(CurrencyType.Gems);
 
-            balanceCard.Add(MakeSummaryRow("Gold",    $"{gold:n0}"));
-            balanceCard.Add(MakeSummaryRow("Gems",    $"{gems:n0}"));
+            balanceCard.Add(MakeCurrencyRow("ic_coin", "Gold", $"{gold:n0}"));
+            balanceCard.Add(MakeCurrencyRow("ic_gem",  "Gems", $"{gems:n0}"));
             _bodyScroll.Add(balanceCard);
 
             // Conversions section
@@ -1868,7 +1922,7 @@ namespace AWZ.UI
             var row = new VisualElement();
             row.style.flexDirection              = FlexDirection.Row;
             row.style.alignItems                 = Align.Center;
-            row.style.backgroundColor            = ColCardBg;
+            AwzGui.Panel9(row, "panel_round", 128, 0.12f, ColCardBg);
             row.style.borderTopLeftRadius        = 10;
             row.style.borderTopRightRadius       = 10;
             row.style.borderBottomLeftRadius     = 10;
@@ -2024,87 +2078,130 @@ namespace AWZ.UI
 
         // ── Style helpers ────────────────────────────────────────────────────
 
-        private static void StyleCard(VisualElement el)
+        // Soft tone for the card's bottom "lip" — gives a subtle cartoon depth like the buttons.
+        private static readonly Color ColCardLip = new Color(0.486f, 0.737f, 0.831f, 1f); // teal-blue card bottom lip
+
+        private static void StyleCard(VisualElement el) => StylePanelBox(el, ColCardBg, 12f, 10f);
+
+        /// <summary>
+        /// Skins a box with the pack's rounded panel sprite + a thin border and a darker bottom
+        /// lip for legible cartoon depth (the flat pack panel alone is low-contrast on cream).
+        /// </summary>
+        private static void StylePanelBox(VisualElement el, Color tint, float pad, float marginBottom)
         {
-            el.style.backgroundColor              = ColCardBg;
-            el.style.borderTopLeftRadius          = 14;
-            el.style.borderTopRightRadius         = 14;
-            el.style.borderBottomLeftRadius       = 14;
-            el.style.borderBottomRightRadius      = 14;
-            el.style.paddingLeft                  = 12;
-            el.style.paddingRight                 = 12;
-            el.style.paddingTop                   = 12;
-            el.style.paddingBottom                = 12;
-            el.style.marginBottom                 = 10;
-            el.style.borderTopWidth               = 1;
-            el.style.borderRightWidth             = 1;
-            el.style.borderBottomWidth            = 2;
-            el.style.borderLeftWidth              = 1;
-            el.style.borderTopColor               = ColCardBorder;
-            el.style.borderRightColor             = ColCardBorder;
-            el.style.borderBottomColor            = ColCardBorder;
-            el.style.borderLeftColor              = ColCardBorder;
+            el.style.paddingLeft   = pad;
+            el.style.paddingRight  = pad;
+            el.style.paddingTop    = pad;
+            el.style.paddingBottom = pad;
+            el.style.marginBottom  = marginBottom;
+
+            AwzGui.Panel9(el, "panel_round", 128, 0.13f, tint);
+
+            SetRadius(el, 18f);
+            el.style.borderTopWidth    = 2;
+            el.style.borderRightWidth  = 2;
+            el.style.borderLeftWidth   = 2;
+            el.style.borderBottomWidth = 4;
+            el.style.borderTopColor    = ColCardBorder;
+            el.style.borderRightColor  = ColCardBorder;
+            el.style.borderLeftColor   = ColCardBorder;
+            el.style.borderBottomColor = ColCardLip;
         }
 
         private static Label MakeSectionHeader(string text)
         {
             var lbl = new Label(text);
-            lbl.style.fontSize                = 13;
-            lbl.style.color                   = ColSectionText;
+            lbl.style.fontSize                = 14;
+            lbl.style.color                   = Color.white;
             lbl.style.unityFontStyleAndWeight = FontStyle.Bold;
-            lbl.style.backgroundColor         = ColSectionChip;
-            lbl.style.borderTopLeftRadius     = 8;
-            lbl.style.borderTopRightRadius    = 8;
-            lbl.style.borderBottomLeftRadius  = 8;
-            lbl.style.borderBottomRightRadius = 8;
-            lbl.style.paddingLeft             = 10;
-            lbl.style.paddingRight            = 10;
-            lbl.style.paddingTop              = 4;
-            lbl.style.paddingBottom           = 4;
+            lbl.style.unityTextAlign          = TextAnchor.MiddleLeft;
+            lbl.style.paddingLeft             = 26;
+            lbl.style.paddingRight            = 26;
+            lbl.style.paddingTop              = 7;
+            lbl.style.paddingBottom           = 11; // ribbon dips lower on the bottom edge
             lbl.style.marginTop               = 12;
-            lbl.style.marginBottom            = 6;
-            lbl.style.marginLeft              = 10;
+            lbl.style.marginBottom            = 4;
+            lbl.style.marginLeft              = 8;
+            lbl.style.minWidth                = 160;
             lbl.style.alignSelf               = Align.FlexStart;
+            AwzGui.Banner(lbl, Color.white); // pink pack ribbon (white tint = unchanged colour)
             return lbl;
         }
 
-        // ── Unified soft-depth button system ─────────────────────────────────
-        // Every action button is built here so styling, the depth "lip", and the
-        // press-down feedback stay consistent. Variants differ only by colour + icon.
+        // ── Cartoon-asset button system ──────────────────────────────────────
+        // Buttons use the imported GUIPackCartoon rectangle sprites as a 9-sliced
+        // background (Green = care, Orange = buy, Gray = dev), so they read as real
+        // game UI instead of flat prototype rectangles. Press sinks + darkens via tint.
 
-        /// <summary>Care action button (green) with a mono icon + label.</summary>
+        private enum BtnSkin { Green, Orange, Gray }
+
+        /// <summary>Care action button (green sprite). Feed/Pet use colourful pack icons;
+        /// Water/Clean fall back to mono vector glyphs (no pack drop/sparkle icon exists).</summary>
         private static Button MakeCareButton(string label, string iconKey, Action clicked)
-            => MakeSoftButton(label, ColCareBg, ColCareText, IconFromKey(iconKey), clicked, small: true);
+        {
+            string gui = iconKey switch { "icon:feed" => "ic_feed", "icon:pet" => "ic_pet", _ => null };
+            AwzIcons.Kind? vec = gui == null ? IconFromKey(iconKey) : null;
+            return MakeSoftButton(label, BtnSkin.Green, ColCareText, vec, gui, clicked, small: true);
+        }
 
-        /// <summary>Economy / purchase button (gold/amber), text only.</summary>
+        /// <summary>Economy / purchase button (orange sprite), text only.</summary>
         private static Button MakeEconButton(string text, Action clicked)
-            => MakeSoftButton(text, ColEconBg, ColEconText, null, clicked, small: true);
+            => MakeSoftButton(text, BtnSkin.Orange, Color.white, null, null, clicked, small: true);
 
-        /// <summary>DEV button: muted gray, unobtrusive.</summary>
+        /// <summary>DEV button: gray sprite, unobtrusive.</summary>
         private static Button MakeDevButton(string text, Action clicked)
-            => MakeSoftButton(text, ColDevBg, ColDevText, null, clicked, small: true);
+            => MakeSoftButton(text, BtnSkin.Gray, ColTextDark, null, null, clicked, small: true);
+
+        // GUIPackCartoon rectangle sprite borders (source 260×100): L/R 130, T/B 50.
+        // unitySliceScale shrinks them to a sensible on-screen size for our button heights.
+        private const int   BtnSliceLR    = 130;
+        private const int   BtnSliceTB    = 50;
+        private const float BtnSliceScale = 0.4f;
+
+        private static readonly Dictionary<BtnSkin, Texture2D> _btnTexCache =
+            new Dictionary<BtnSkin, Texture2D>();
+
+        private static Texture2D BtnTexture(BtnSkin skin)
+        {
+            if (_btnTexCache.TryGetValue(skin, out var cached) && cached != null) return cached;
+            string file = skin switch
+            {
+                BtnSkin.Green  => "btn_green",
+                BtnSkin.Orange => "btn_orange",
+                BtnSkin.Gray   => "btn_gray",
+                _              => "btn_gray",
+            };
+            var tex = Resources.Load<Texture2D>($"Art/UI/{file}");
+            if (tex == null)
+                Debug.LogWarning($"[GameApp] Button sprite missing: Resources/Art/UI/{file}");
+            _btnTexCache[skin] = tex;
+            return tex;
+        }
+
+        private static Color SkinFallbackColor(BtnSkin skin) => skin switch
+        {
+            BtnSkin.Green  => ColCareBg,
+            BtnSkin.Orange => ColEconBg,
+            BtnSkin.Gray   => ColDevBg,
+            _              => ColDevBg,
+        };
 
         /// <summary>
-        /// Builds a soft-depth button: solid fill, a darker bottom "lip" for depth, and a
-        /// press animation (the button sinks 2px and the lip flattens while held). All state
-        /// changes are inline styles so the runtime theme's hover/active never fights them.
+        /// Builds a button skinned with a 9-sliced cartoon sprite. Falls back to a flat tinted
+        /// pill if the sprite is missing (logged). Press feedback: sinks 2px + darkens.
         /// </summary>
-        private static Button MakeSoftButton(string label, Color bg, Color fg,
-                                             AwzIcons.Kind? icon, Action clicked, bool small)
+        private static Button MakeSoftButton(string label, BtnSkin skin, Color fg,
+                                             AwzIcons.Kind? icon, string guiIcon, Action clicked, bool small)
         {
             var btn = new Button(clicked) { text = string.Empty };
 
-            Color lip     = Darken(bg, 0.80f);
-            Color pressed = Darken(bg, 0.90f);
-
-            float padV = small ? 6f  : 9f;
-            float padH = small ? 12f : 16f;
+            float padV = small ? 8f  : 10f;
+            float padH = small ? 20f : 26f;
             float fs   = small ? 12f : 13f;
 
             btn.style.flexDirection           = FlexDirection.Row;
             btn.style.alignItems              = Align.Center;
             btn.style.justifyContent          = Justify.Center;
-            btn.style.backgroundColor         = bg;
             btn.style.color                   = fg;
             btn.style.fontSize                = fs;
             btn.style.unityFontStyleAndWeight = FontStyle.Bold;
@@ -2114,20 +2211,44 @@ namespace AWZ.UI
             btn.style.paddingLeft             = padH;
             btn.style.paddingRight            = padH;
             btn.style.marginTop               = 0;
-            btn.style.marginBottom            = 4;
+            btn.style.marginBottom            = 5;
             btn.style.marginLeft              = 0;
             btn.style.marginRight             = 5;
-            btn.style.minHeight               = small ? 32f : 40f;
-            SetRadius(btn, 12f);
-            btn.style.borderTopWidth          = 0;
-            btn.style.borderLeftWidth         = 0;
-            btn.style.borderRightWidth        = 0;
-            btn.style.borderBottomWidth       = 3;
-            btn.style.borderBottomColor       = lip;
+            btn.style.minHeight               = small ? 38f : 46f;
 
-            if (icon.HasValue)
+            var tex = BtnTexture(skin);
+            if (tex != null)
             {
-                var ic = AwzIcons.Make(icon.Value, fs + 3f, fg);
+                // 9-sliced cartoon sprite background — no solid fill or border lip needed.
+                btn.style.backgroundColor   = Color.clear;
+                btn.style.backgroundImage   = new StyleBackground(tex);
+                btn.style.unitySliceLeft    = BtnSliceLR;
+                btn.style.unitySliceRight   = BtnSliceLR;
+                btn.style.unitySliceTop     = BtnSliceTB;
+                btn.style.unitySliceBottom  = BtnSliceTB;
+                btn.style.unitySliceScale   = BtnSliceScale;
+                btn.style.borderTopWidth    = 0;
+                btn.style.borderLeftWidth   = 0;
+                btn.style.borderRightWidth  = 0;
+                btn.style.borderBottomWidth = 0;
+            }
+            else
+            {
+                Color bg = SkinFallbackColor(skin);
+                btn.style.backgroundColor   = bg;
+                SetRadius(btn, 14f);
+                btn.style.borderTopWidth    = 0;
+                btn.style.borderLeftWidth   = 0;
+                btn.style.borderRightWidth  = 0;
+                btn.style.borderBottomWidth = 3;
+                btn.style.borderBottomColor = Darken(bg, 0.80f);
+            }
+
+            VisualElement ic = null;
+            if (!string.IsNullOrEmpty(guiIcon)) ic = AwzGui.Icon(guiIcon, fs + 6f);
+            else if (icon.HasValue)             ic = AwzIcons.Make(icon.Value, fs + 3f, fg);
+            if (ic != null)
+            {
                 ic.style.marginRight = 6;
                 btn.Add(ic);
             }
@@ -2139,18 +2260,19 @@ namespace AWZ.UI
             lbl.style.whiteSpace              = WhiteSpace.NoWrap;
             btn.Add(lbl);
 
+            // Press feedback: sink 2px + darken (tint affects the sprite; the flat fallback
+            // just sinks). Restored on up/leave/cancel.
+            void Press()
+            {
+                btn.style.translate                     = new Translate(0f, 2f);
+                btn.style.unityBackgroundImageTintColor = new Color(0.82f, 0.82f, 0.82f, 1f);
+            }
             void Restore()
             {
-                btn.style.translate         = new Translate(0f, 0f);
-                btn.style.borderBottomWidth = 3;
-                btn.style.backgroundColor   = bg;
+                btn.style.translate                     = new Translate(0f, 0f);
+                btn.style.unityBackgroundImageTintColor = Color.white;
             }
-            btn.RegisterCallback<PointerDownEvent>(_ =>
-            {
-                btn.style.translate         = new Translate(0f, 2f);
-                btn.style.borderBottomWidth = 1;
-                btn.style.backgroundColor   = pressed;
-            });
+            btn.RegisterCallback<PointerDownEvent>(_   => Press());
             btn.RegisterCallback<PointerUpEvent>(_     => Restore());
             btn.RegisterCallback<PointerLeaveEvent>(_  => Restore());
             btn.RegisterCallback<PointerCancelEvent>(_ => Restore());
