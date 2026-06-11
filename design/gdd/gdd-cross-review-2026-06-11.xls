@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+  <Style ss:ID="hdr"><Font ss:Bold="1"/><Interior ss:Color="#D9E1F2" ss:Pattern="Solid"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+  <Style ss:ID="title"><Font ss:Bold="1" ss:Size="14"/></Style>
+  <Style ss:ID="block"><Font ss:Bold="1" ss:Color="#C00000"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+  <Style ss:ID="warn"><Font ss:Bold="1" ss:Color="#BF8F00"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+ </Styles>
+
+ <Worksheet ss:Name="Tổng quan">
+  <Table>
+   <Column ss:Width="120"/><Column ss:Width="520"/>
+   <Row ss:Height="22"><Cell ss:StyleID="title"><Data ss:Type="String">Cross-GDD Review — Animal World Zoo</Data></Cell></Row>
+   <Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Ngày</Data></Cell><Cell><Data ss:Type="String">2026-06-11</Data></Cell></Row>
+   <Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Phạm vi</Data></Cell><Cell><Data ss:Type="String">15 system GDD + game-concept + 2 redesign proposal + entities.yaml. 3 pass song song: Consistency / Design holism / Scenario walkthrough.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="hdr"><Data ss:Type="String">VERDICT</Data></Cell><Cell ss:StyleID="block"><Data ss:Type="String">FAIL</Data></Cell></Row>
+   <Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Lý do</Data></Cell><Cell><Data ss:Type="String">Nhiều blocking issue ở tầng GDD (không chỉ code). Phần lớn hội tụ về 4 quyết định lớn còn treo; 2 trong số đó đã có proposal viết sẵn nhưng CHƯA accepted (economy-redesign.md, xp-pacing-redesign-2026-06-08.md).</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String"></Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">META-RISK</Data></Cell><Cell><Data ss:Type="String">Hai mô hình "sự thật" cùng tồn tại trong design/gdd/ mà không cross-link. economy-redesign.md và xp-pacing-redesign-2026-06-08.md (proposed-redesign, chưa accepted) nằm cạnh live GDD nhưng không live GDD nào có banner báo có proposal sửa. Dev/architect đọc riêng lẻ sẽ implement bản live mà không biết có target khác.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Fix meta</Data></Cell><Cell><Data ss:Type="String">Thêm 1 dòng banner ở đầu mỗi live GDD bị revise (zoo-economy, zoo-level, habitat, enrichment, attractions, quests, idle-offline). Documentation gate, không phải quyết định thiết kế.</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String"></Data></Cell></Row>
+   <Row ss:Height="20"><Cell ss:StyleID="hdr"><Data ss:Type="String">4 QUYẾT ĐỊNH GỐC RỄ</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Giải quyết → dập tắt phần lớn blocking</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">1</Data></Cell><Cell><Data ss:Type="String">Chốt economy model (accept/sửa economy-redesign.md) → B-3</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">2</Data></Cell><Cell><Data ss:Type="String">Chốt XP pacing (accept/sửa xp-pacing-redesign) + ship daily missions → B-2</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">3</Data></Cell><Cell><Data ss:Type="String">Thống nhất happy_mult = welfare composite, đồng bộ C1/C2/Fe7, và derive happy từ care stats → B-1</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">4</Data></Cell><Cell><Data ss:Type="String">Quyết offline decay yes/no + viết session-lifecycle doc chính tắc → B-4, B-8</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Cơ học</Data></Cell><Cell><Data ss:Type="String">Cộng các sync cơ học: decay rate (B-5), cost mult (B-6), dependency edges (B-7), banner cross-link (meta).</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String"></Data></Cell></Row>
+   <Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Tổng kết</Data></Cell><Cell><Data ss:Type="String">Blocking: 9 (hợp nhất) | Warnings chính: ~11 | Scenario findings: 20 (9 blocker / 7 warn / 4 info).</Data></Cell></Row>
+   <Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Drafts chi tiết</Data></Cell><Cell><Data ss:Type="String">_review-phase2-consistency.draft.md ; _review-phase3-design.draft.md ; _review-phase4-scenarios.draft.md</Data></Cell></Row>
+  </Table>
+ </Worksheet>
+
+ <Worksheet ss:Name="Blocking">
+  <Table>
+   <Column ss:Width="40"/><Column ss:Width="420"/><Column ss:Width="120"/><Column ss:Width="150"/><Column ss:Width="320"/>
+   <Row ss:Height="20"><Cell ss:StyleID="hdr"><Data ss:Type="String">ID</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Vấn đề</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Nguồn</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Bản chất</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Fix</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B-1</Data></Cell><Cell><Data ss:Type="String">happy_mult có 3 định nghĩa mâu thuẫn: zoo-economy.md §4 dùng avgHappiness (1 meter); entities.yaml (revised 06-06) dùng welfare composite 4-meter; idle-offline.md §4 trích bản 1-meter cũ. Hệ quả: nếu giữ 1-meter thì Play (free) thống trị, 3/5 care action vô nghĩa, phá Pillar 3.</Data></Cell><Cell><Data ss:Type="String">[C]2b-1 [D]3c-1 [D]3g-1</Data></Cell><Cell><Data ss:Type="String">Doc contradiction + dominant strategy</Data></Cell><Cell><Data ss:Type="String">Cập nhật C2/C1/Fe7 về welfare composite; derive happy từ hunger/thirst/clean.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B-2</Data></Cell><Cell><Data ss:Type="String">XP pacing sụp đổ cấu trúc: LEVEL_XP geometric (Lv92≈30.6M) vs faucet phẳng (care +3/tap, quest 9.8k once). Tính độc lập: 44+ năm tới Lv92. C3 AC "Lv7 trong Day 5-7" KHÔNG thể pass. Mọi content gate theo level thành bất khả thi.</Data></Cell><Cell><Data ss:Type="String">[C]2e-1 [C]2f-1 [D]3e-1 [D]3f-2</Data></Cell><Cell><Data ss:Type="String">Design-math, AC fail</Data></Cell><Cell><Data ss:Type="String">Accept/sửa xp-pacing-redesign (Education XP scale theo visitor); ship daily missions; offline XP.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B-3</Data></Cell><Cell><Data ss:Type="String">Cả 4 gold sink đều đổ về 1 biến appeal (adopt/upgrade/enrich ↑appeal; attraction ↑income của appeal). Không có không gian lựa chọn chiến thuật; mọi sink cap trong khi income không cap → dead-zone "giàu mà kẹt".</Data></Cell><Cell><Data ss:Type="String">[D]3c-2 [D]3d-5 [D]3c-3</Data></Cell><Cell><Data ss:Type="String">Design flaw (proposal đã có)</Data></Cell><Cell><Data ss:Type="String">Phân vai 4 sink: adopt→appeal, enclosure→capacity, enrichment→welfare mult, attraction→spend/visitor (theo economy-redesign Move 1).</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B-4</Data></Cell><Cell><Data ss:Type="String">Mâu thuẫn offline decay: idle-offline.md Rule 10 "KHÔNG decay offline" vs entities.yaml "decay IS applied on resume (floor 35-40)". Trực tiếp đối nghịch.</Data></Cell><Cell><Data ss:Type="String">[C]2b-7 [S]W1</Data></Cell><Cell><Data ss:Type="String">Cần quyết định thiết kế</Data></Cell><Cell><Data ss:Type="String">Chốt 1 đáp án; cập nhật CẢ HAI doc; nếu có decay thì viết formula vào Fe7 Rule 10.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B-5</Data></Cell><Cell><Data ss:Type="String">Decay rate desync: animal-care.md §4 vẫn ghi tick 12s, 6/8/5/3; entities.yaml đã revise tick 30 phút, 3/4/3/2. Dev đọc C1 sẽ làm con vật chết đói trong vài phút thay vì 8-12h.</Data></Cell><Cell><Data ss:Type="String">[C]2b-2</Data></Cell><Cell><Data ss:Type="String">GDD text stale</Data></Cell><Cell><Data ss:Type="String">Cập nhật C1 §4 + §7: tick 1800000ms, decay 3/4/3/2; ghi chú rationale daily-ritual.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B-6</Data></Cell><Cell><Data ss:Type="String">Cost multiplier stale ở 3+ GDD: Fe1/Fe2/Fe3/F1 còn ghi mult cũ (upgrade 160, enrich 40); registry đã revise (80, 20). Implement theo GDD → chi phí sai 2x cho species cao cấp.</Data></Cell><Cell><Data ss:Type="String">[C]2e-2 [D]3e-3</Data></Cell><Cell><Data ss:Type="String">GDD vs registry</Data></Cell><Cell><Data ss:Type="String">Đồng bộ Fe1/Fe2/Fe3/F1 về mult registry (buy 50, upgrade 80, enrich 20); chạy /balance-check.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B-7</Data></Cell><Cell><Data ss:Type="String">Đồ thị dependency sai trong systems-index.md: thiếu cạnh Fe1→C2, Fe3→C1, Fe3→C4. Blast-radius analysis của architect sẽ bỏ sót downstream.</Data></Cell><Cell><Data ss:Type="String">[C]2a-1 [C]2a-2</Data></Cell><Cell><Data ss:Type="String">Consistency (architecture)</Data></Cell><Cell><Data ss:Type="String">Thêm các cạnh thiếu vào systems-index + §6 của C2/C1/C4/Fe1/Fe3.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B-8</Data></Cell><Cell><Data ss:Type="String">Không có session lifecycle / resume order chính tắc. Thứ tự F3 load → Fe7 offline → C1 decay → C2 recompute mô tả rải rác. Hệ quả: offline gold dùng welfare trước hay sau decay là undefined (chênh tới 2.8x). Đã gây ra dual-bootstrap split (AppBootstrap vs GameApp).</Data></Cell><Cell><Data ss:Type="String">[S]XS1 [S]B1</Data></Cell><Cell><Data ss:Type="String">Undefined integration behavior</Data></Cell><Cell><Data ss:Type="String">Viết 1 mục session-lifecycle (trong F3 hoặc doc mới) định nghĩa chuỗi boot open/close.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B-9</Data></Cell><Cell><Data ss:Type="String">Quá tải attention + Pillar 3 gãy: 6 hệ thống active đồng thời 1 session (C1/Fe2/Fe3/Fe4/Fe5/Fe6) vượt ngưỡng ≤4; mâu thuẫn Pillar 4. 29 loài x 5 action = tới 145 tap/session chỉ riêng care.</Data></Cell><Cell><Data ss:Type="String">[D]3b-1 [D]3f-1</Data></Cell><Cell><Data ss:Type="String">Design (cognitive load)</Data></Cell><Cell><Data ss:Type="String">Thêm "Today Focus" HUD; giới thiệu hệ thống tuần tự theo level; giới hạn số con vật cần chăm mỗi ngày / auto-care.</Data></Cell></Row>
+  </Table>
+ </Worksheet>
+
+ <Worksheet ss:Name="Warnings">
+  <Table>
+   <Column ss:Width="160"/><Column ss:Width="640"/>
+   <Row ss:Height="20"><Cell ss:StyleID="hdr"><Data ss:Type="String">Ref</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Vấn đề</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[C]2b-3 / [D]3e-2</Data></Cell><Cell><Data ss:Type="String">Bảng HAB_UPGRADE hiển thị x3.0 @Lv5 nhưng formula chính tắc cho x2.0. Phóng đại ROI 50%.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[C]2b-4</Data></Cell><Cell><Data ss:Type="String">4 tier level-span lệch giữa animal-database.md và game-concept.md (ví dụ Tier 5: Lv60-66 vs Lv54-69).</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[C]2c-2</Data></Cell><Cell><Data ss:Type="String">Toàn bộ save-load.md (F3) mô tả localStorage/Date.now() (React) trong khi shipping là C#/persistentDataPath.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[C]2c-1</Data></Cell><Cell><Data ss:Type="String">F2 trỏ tới GDD không tồn tại "F5 Educational Shows / educational-shows.md" (tên đúng là Fe5 Performance, chưa có GDD).</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[D]3d-3</Data></Cell><Cell><Data ss:Type="String">Reputation được thưởng (Shows +18% rep) nhưng không bao giờ tiêu / không vào formula nào → số chết, dạy người chơi bỏ qua mọi số.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[D]3d-4</Data></Cell><Cell><Data ss:Type="String">Conservation Tokens: currency không có GDD, không sink, có expiry. Cần document sink hoặc đánh dấu roadmap.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[D]3f-4</Data></Cell><Cell><Data ss:Type="String">Ranh giới "no pay-to-win" chưa định nghĩa: VIP 24h offline cap = lợi thế tốc độ tiến trình.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[D]3e-5 / 3g-2 / [S]W7</Data></Cell><Cell><Data ss:Type="String">Nhãn độ khó taming là flavor thuần: mọi loài thuần hóa trong ~18 tap như nhau; "Master = 3+ tuần" là quảng cáo sai.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[C]2c-5 / [D]3e-4</Data></Cell><Cell><Data ss:Type="String">Level gate của attraction: Fe4 OQ-1 nói chưa enforce, registry nói đã fix → trạng thái mơ hồ. Cần đồng bộ + enforce.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[C]2d-1</Data></Cell><Cell><Data ss:Type="String">BUY/UPGRADE/ENRICH_COST_MULT bị claim sở hữu đôi giữa F2 và Fe1/Fe2/Fe3. Làm rõ F2 chỉ tracking, feature GDD sở hữu.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">[C]2d-3</Data></Cell><Cell><Data ss:Type="String">gold_start: F2=50, C# code=200. Reconcile.</Data></Cell></Row>
+  </Table>
+ </Worksheet>
+
+ <Worksheet ss:Name="Scenario">
+  <Table>
+   <Column ss:Width="40"/><Column ss:Width="160"/><Column ss:Width="80"/><Column ss:Width="560"/>
+   <Row ss:Height="20"><Cell ss:StyleID="hdr"><Data ss:Type="String">ID</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Scenario</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Loại</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Mô tả</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B1</Data></Cell><Cell><Data ss:Type="String">Offline resume</Data></Cell><Cell><Data ss:Type="String">BLOCKER</Data></Cell><Cell><Data ss:Type="String">goldPerSec dùng welfare trước hay sau decay không định nghĩa → chênh tới 2.8x. Fe7 vs entities.yaml mâu thuẫn.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B2</Data></Cell><Cell><Data ss:Type="String">Offline resume</Data></Cell><Cell><Data ss:Type="String">BLOCKER</Data></Cell><Cell><Data ss:Type="String">AnimalMeters không serialize (SaveService.cs:143) → Fe7 fallback avgHappy=60, sai reward; chưa flag ở Fe7 GDD.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B3</Data></Cell><Cell><Data ss:Type="String">Adopt new species</Data></Cell><Cell><Data ss:Type="String">BLOCKER</Data></Cell><Cell><Data ss:Type="String">confirmBuy() không enforce capacity gate và không định nghĩa thứ tự khi unlock-level trùng biome-unlock-level (ví dụ Zebra @Lv32).</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B4</Data></Cell><Cell><Data ss:Type="String">Care action</Data></Cell><Cell><Data ss:Type="String">BLOCKER</Data></Cell><Cell><Data ss:Type="String">happy_mult thiết kế nhưng VẮNG trong C# (EconomyService không áp welfare) → link care→income gãy. (impl-gap, surfaced)</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B5</Data></Cell><Cell><Data ss:Type="String">Care action</Data></Cell><Cell><Data ss:Type="String">BLOCKER</Data></Cell><Cell><Data ss:Type="String">+3 XP có thể cross level threshold giữa session, mở unlock attraction/species ngay; không định nghĩa UI handoff / notification order.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B6</Data></Cell><Cell><Data ss:Type="String">Level milestone</Data></Cell><Cell><Data ss:Type="String">BLOCKER</Data></Cell><Cell><Data ss:Type="String">Claim quest có thể chain-claim nhiều chapter + level-up đôi 1 tick; không có rate-limit / không document đây là catch-up có ý.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B7</Data></Cell><Cell><Data ss:Type="String">Level milestone</Data></Cell><Cell><Data ss:Type="String">BLOCKER</Data></Cell><Cell><Data ss:Type="String">Unlock trung gian (species/attraction) khi cross nhiều level không được announce → người chơi có attraction buildable mà không biết.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B8</Data></Cell><Cell><Data ss:Type="String">Trust-gated attraction</Data></Cell><Cell><Data ss:Type="String">BLOCKER</Data></Cell><Cell><Data ss:Type="String">"Needs Trust ≥40" chỉ là chữ mô tả; gate không enforce ở bất kỳ code path nào + trust không persist → taming non-functional. (impl-gap, surfaced)</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">B9</Data></Cell><Cell><Data ss:Type="String">Trust-gated attraction</Data></Cell><Cell><Data ss:Type="String">BLOCKER</Data></Cell><Cell><Data ss:Type="String">Trust KHÔNG BAO GIỜ ghi/đọc trong C# → toàn bộ Taming (C4) + gate Petting/Arena + show bonus là ghost. (impl-gap, surfaced)</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">W3</Data></Cell><Cell><Data ss:Type="String">Adopt new species</Data></Cell><Cell><Data ss:Type="String">WARNING</Data></Cell><Cell><Data ss:Type="String">+40 XP adopt có thể cross threshold, announce level nhưng bỏ qua unlock trung gian.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">W4</Data></Cell><Cell><Data ss:Type="String">Care action</Data></Cell><Cell><Data ss:Type="String">WARNING</Data></Cell><Cell><Data ss:Type="String">counts.feed tăng theo tap; có thể "Feed N times" mà không đủ gold (thứ tự increment vs gold-check chưa định nghĩa).</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">W5</Data></Cell><Cell><Data ss:Type="String">Care action</Data></Cell><Cell><Data ss:Type="String">WARNING</Data></Cell><Cell><Data ss:Type="String">Play (+100 happy, free) thống trị Heal (+40 happy, tốn gold) trên mọi metric → Heal là dominated strategy.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">W6</Data></Cell><Cell><Data ss:Type="String">Level milestone</Data></Cell><Cell><Data ss:Type="String">WARNING</Data></Cell><Cell><Data ss:Type="String">Quest XP lớn (Ch7 +3000) có thể cross nhiều level ở early band; tutorial (P7) giả định tiến từng level.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="block"><Data ss:Type="String">XS1</Data></Cell><Cell><Data ss:Type="String">Cross-scenario</Data></Cell><Cell><Data ss:Type="String">BLOCKER</Data></Cell><Cell><Data ss:Type="String">Không có tài liệu session resume order chính tắc (xem B-8).</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">XS2</Data></Cell><Cell><Data ss:Type="String">Cross-scenario</Data></Cell><Cell><Data ss:Type="String">WARNING</Data></Cell><Cell><Data ss:Type="String">Không GDD nào định nghĩa notification priority khi nhiều event fire cùng render (level-up / care / quest / adopt / build).</Data></Cell></Row>
+  </Table>
+ </Worksheet>
+
+ <Worksheet ss:Name="Impl-gap & Flagged">
+  <Table>
+   <Column ss:Width="200"/><Column ss:Width="420"/><Column ss:Width="90"/><Column ss:Width="90"/>
+   <Row ss:Height="20"><Cell ss:StyleID="hdr"><Data ss:Type="String">PHỤ LỤC A: Implementation gaps (NGOÀI phạm vi review GDD — surface để truy vết; thuộc production/implementation-gaps.md)</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">happy_mult</Data></Cell><Cell><Data ss:Type="String">Hoàn toàn vắng trong C# (EconomyService.GoldPerSec không áp welfare) → link care→income gãy.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">Trust</Data></Cell><Cell><Data ss:Type="String">Không bao giờ ghi/đọc trong C# → Taming + gate Petting/Arena + show bonus là ghost; "Needs Trust≥40" là chữ trang trí.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">AnimalMeters</Data></Cell><Cell><Data ss:Type="String">Không serialize (SaveService.cs:143) → trust/meters reset mỗi lần reload.</Data></Cell></Row>
+   <Row><Cell ss:StyleID="warn"><Data ss:Type="String">Dual-bootstrap</Data></Cell><Cell><Data ss:Type="String">AppBootstrap (wires Save/Idle, render rỗng) vs GameApp (render đầy đủ, không gọi Save/Idle). Path đang chạy không save/offline.</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String"></Data></Cell></Row>
+   <Row ss:Height="20"><Cell ss:StyleID="hdr"><Data ss:Type="String">PHỤ LỤC B: GDD bị flag để revise</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Lý do</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Loại</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Ưu tiên</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">zoo-economy.md (C2)</Data></Cell><Cell><Data ss:Type="String">happy_mult formula cũ; sink collapse</Data></Cell><Cell><Data ss:Type="String">C+D</Data></Cell><Cell ss:StyleID="block"><Data ss:Type="String">Blocking</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">animal-care.md (C1)</Data></Cell><Cell><Data ss:Type="String">decay rate stale; happy không derive</Data></Cell><Cell><Data ss:Type="String">C+D</Data></Cell><Cell ss:StyleID="block"><Data ss:Type="String">Blocking</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">zoo-level.md (C3)</Data></Cell><Cell><Data ss:Type="String">XP pacing; AC bất khả thi</Data></Cell><Cell><Data ss:Type="String">C+D</Data></Cell><Cell ss:StyleID="block"><Data ss:Type="String">Blocking</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">idle-offline.md (Fe7)</Data></Cell><Cell><Data ss:Type="String">happy_mult cũ; mâu thuẫn offline decay; resume order</Data></Cell><Cell><Data ss:Type="String">C+S</Data></Cell><Cell ss:StyleID="block"><Data ss:Type="String">Blocking</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">habitat-system.md (Fe2)</Data></Cell><Cell><Data ss:Type="String">cost mult stale; HAB_UPGRADE x3.0</Data></Cell><Cell><Data ss:Type="String">C</Data></Cell><Cell ss:StyleID="block"><Data ss:Type="String">Blocking</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">enrichment.md (Fe3)</Data></Cell><Cell><Data ss:Type="String">cost mult stale; ROI dominance; dependency edges</Data></Cell><Cell><Data ss:Type="String">C+D</Data></Cell><Cell ss:StyleID="block"><Data ss:Type="String">Blocking</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">animal-database.md (F1)</Data></Cell><Cell><Data ss:Type="String">tier span lệch; cost mult stale</Data></Cell><Cell><Data ss:Type="String">C</Data></Cell><Cell ss:StyleID="block"><Data ss:Type="String">Blocking</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">systems-index.md</Data></Cell><Cell><Data ss:Type="String">dependency edges thiếu (Fe1→C2, Fe3→C1/C4)</Data></Cell><Cell><Data ss:Type="String">C</Data></Cell><Cell ss:StyleID="block"><Data ss:Type="String">Blocking</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">attractions.md (Fe4)</Data></Cell><Cell><Data ss:Type="String">rep dead-end; level gate; trust gate fiction</Data></Cell><Cell><Data ss:Type="String">C+D</Data></Cell><Cell ss:StyleID="warn"><Data ss:Type="String">Warning</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">taming.md (C4)</Data></Cell><Cell><Data ss:Type="String">difficulty labels là flavor; trust chưa impl</Data></Cell><Cell><Data ss:Type="String">D</Data></Cell><Cell ss:StyleID="warn"><Data ss:Type="String">Warning</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">save-load.md (F3)</Data></Cell><Cell><Data ss:Type="String">mô tả React, không phải C#</Data></Cell><Cell><Data ss:Type="String">C</Data></Cell><Cell ss:StyleID="warn"><Data ss:Type="String">Warning</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">currency-system.md (F2)</Data></Cell><Cell><Data ss:Type="String">dead link F5; conservation tokens; gold_start</Data></Cell><Cell><Data ss:Type="String">C</Data></Cell><Cell ss:StyleID="warn"><Data ss:Type="String">Warning</Data></Cell></Row>
+  </Table>
+ </Worksheet>
+
+</Workbook>

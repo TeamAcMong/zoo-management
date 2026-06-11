@@ -40,20 +40,20 @@ formalises their design status and remaining gaps.
 
 | # | System Name | Category | Priority | Status | Design Doc | Depends On |
 |---|-------------|----------|----------|--------|------------|------------|
-| F1 | Animal Database | Core | MVP | Designed; **C# 12/29, no SO assets** ⚠️ | [design/gdd/animal-database.md](animal-database.md) | — |
-| F2 | Currency System | Core | MVP | Implemented | — | — |
-| F3 | Save / Load System | Persistence | MVP | **Implemented (C#)** ⚠️ | [design/gdd/save-load.md](save-load.md) | — |
-| C1 | Animal Care System | Gameplay | MVP | Implemented ⚠️ | [design/gdd/animal-care.md](animal-care.md) | F1, F2, F3 |
-| C2 | Zoo Economy | Economy | MVP | Implemented | [design/gdd/zoo-economy.md](zoo-economy.md) | F1, F2, C1 |
-| C3 | Zoo Level Progression | Progression | MVP | Implemented | [design/gdd/zoo-level.md](zoo-level.md) | F1, F3 |
-| C4 | Taming System | Gameplay | MVP | **Design-only in C#** ⚠️ (Trust never written/read) | [design/gdd/taming.md](taming.md) | F1, F3, C1 |
+| F1 | Animal Database | Core | MVP | Needs Revision | [design/gdd/animal-database.md](animal-database.md) | — |
+| F2 | Currency System | Core | MVP | Needs Revision | — | — |
+| F3 | Save / Load System | Persistence | MVP | Needs Revision | [design/gdd/save-load.md](save-load.md) | — |
+| C1 | Animal Care System | Gameplay | MVP | Needs Revision | [design/gdd/animal-care.md](animal-care.md) | F1, F2, F3 |
+| C2 | Zoo Economy | Economy | MVP | Needs Revision | [design/gdd/zoo-economy.md](zoo-economy.md) | F1, F2, C1 |
+| C3 | Zoo Level Progression | Progression | MVP | Needs Revision | [design/gdd/zoo-level.md](zoo-level.md) | F1, F3 |
+| C4 | Taming System | Gameplay | MVP | Needs Revision | [design/gdd/taming.md](taming.md) | F1, F3, C1 |
 | Fe1 | Animal Collection | Gameplay | MVP | Implemented | [design/gdd/animal-collection.md](animal-collection.md) | C3, F1, F2, F3 |
-| Fe2 | Habitat System | Gameplay | MVP | Implemented ⚠️ | [design/gdd/habitat-system.md](habitat-system.md) | Fe1, F2, F3, C3 |
-| Fe3 | Enrichment System (inferred) | Gameplay | Vertical Slice | Implemented ⚠️ | [design/gdd/enrichment.md](enrichment.md) | Fe2, F2, Fe1 |
-| Fe4 | Attractions System | Gameplay | MVP | **Service stub (UI-only)** ⚠️ | [design/gdd/attractions.md](attractions.md) | C3, F2, F3, C4 |
+| Fe2 | Habitat System | Gameplay | MVP | Needs Revision | [design/gdd/habitat-system.md](habitat-system.md) | Fe1, F2, F3, C3 |
+| Fe3 | Enrichment System (inferred) | Gameplay | Vertical Slice | Needs Revision | [design/gdd/enrichment.md](enrichment.md) | Fe2, F2, Fe1 |
+| Fe4 | Attractions System | Gameplay | MVP | Needs Revision | [design/gdd/attractions.md](attractions.md) | C3, F2, F3, C4 |
 | Fe5 | Performance System | Gameplay | Alpha | Partial | — | Fe4, C4, F1, Fe1 |
 | Fe6 | Quests / Missions | Progression | MVP | Partial ⚠️ | [design/gdd/quests-missions.md](quests-missions.md) | C1, C3, F3 |
-| Fe7 | Idle / Offline Earnings | Economy | MVP | **Implemented (C#)** ⚠️ | [design/gdd/idle-offline.md](idle-offline.md) | C2, F3, F2 |
+| Fe7 | Idle / Offline Earnings | Economy | MVP | Needs Revision | [design/gdd/idle-offline.md](idle-offline.md) | C2, F3, F2 |
 | Fe8 | Reputation System (inferred) | Progression | Alpha | Data only | — | Fe4 |
 | P1 | HUD / Live View | UI | MVP | Implemented | — | C2, F2, C3 |
 | P2 | Zoo Map / Live Scene | UI | MVP | Implemented | — | Fe1, Fe2, C1 |
@@ -66,6 +66,31 @@ formalises their design status and remaining gaps.
 | M1 | Live Events | Meta | Full Vision | Not Started | — | F2, C3, Fe6 |
 | M3 | Photo Mode | Meta | Full Vision | Not Started | — | P2 |
 | M4 | Friends / Gifting | Meta | Full Vision | Not Started | — | F2, F3 |
+
+### ⚠️ Cross-GDD Review 2026-06-11 — "Needs Revision" flags
+
+`/review-all-gdds` (verdict **FAIL**) flagged the systems below; their **Status** above
+was set to `Needs Revision`. The prior status + flag reason are preserved here so no
+implementation-state info is lost. Full report:
+[`gdd-cross-review-2026-06-11.xls`](gdd-cross-review-2026-06-11.xls)
+(+ `_review-phase{2,3,4}-*.draft.md`).
+
+| System | Prior status | Flag reason | Severity |
+|--------|--------------|-------------|----------|
+| F1 | Designed; C# 12/29, no SO assets | tier span lệch (F1 vs game-concept); cost mult stale | Blocking |
+| F2 | Implemented | dead link "F5 Educational Shows"; conservation tokens no sink; gold_start 50 vs 200 | Warning |
+| F3 | Implemented (C#) | GDD mô tả React/localStorage, không phải C#/persistentDataPath | Warning |
+| C1 | Implemented ⚠️ | decay rate stale (12s vs 30min); happy không derive từ care stats | Blocking |
+| C2 | Implemented | happy_mult formula cũ (1-meter); 4 sink collapse về appeal | Blocking |
+| C3 | Implemented | XP pacing collapse; AC "Lv7 Day 5–7" bất khả thi | Blocking |
+| C4 | Design-only in C# (Trust never written/read) | difficulty labels là flavor; trust chưa impl | Warning |
+| Fe2 | Implemented ⚠️ | cost mult stale (160→80); HAB_UPGRADE ×3.0 vs formula ×2.0 | Blocking |
+| Fe3 | Implemented ⚠️ | cost mult stale (40→20); ROI dominance; dependency edges thiếu | Blocking |
+| Fe4 | Service stub (UI-only) | reputation dead-end; level gate mơ hồ; trust gate fiction | Warning |
+| Fe7 | Implemented (C#) | happy_mult cũ; mâu thuẫn offline decay; resume order undefined | Blocking |
+
+> Ngoài bảng trên, **`systems-index.md` này** cũng cần sửa các cạnh dependency còn
+> thiếu (Fe1→C2, Fe3→C1/C4) — xem issue **B-7** trong báo cáo.
 
 ---
 
