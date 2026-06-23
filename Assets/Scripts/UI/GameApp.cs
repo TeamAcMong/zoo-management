@@ -27,6 +27,9 @@ namespace AWZ.UI
         private IEnrichmentService  _enrichment;
         private IAttractionService  _attractions;
         private CollectionService   _collection;
+        private AWZ.Runtime.SaveService _save;   // F3 persistence (Phase 0 wiring)
+        private IdleService _idle;               // Fe7 offline income (Phase 1)
+        private long _offlineGold;               // pending amount to show in welcome-back modal
 
         // ── Tick bookkeeping ────────────────────────────────────────────────
         private float _tickAccum;
@@ -145,6 +148,7 @@ namespace AWZ.UI
             {
                 _tickAccum -= 1f;
                 _currency.Grant(CurrencyType.Gold, _economy.GoldPerSec());
+                _save?.Save(_state);   // debounced (300 ms) — persists income + any actions since last tick
             }
 
             _refreshAccum += dt;
@@ -158,15 +162,17 @@ namespace AWZ.UI
         // ── Domain construction (mirrors DevHarness exactly) ─────────────────
         private void BuildDomain()
         {
-            _state = new GameState
+            // F3 — load persisted state; seed a new game only on first run (empty save).
+            _save  = gameObject.AddComponent<AWZ.Runtime.SaveService>();
+            _state = _save.Load();
+            if (_state.OwnedSpecies.Length == 0)
             {
-                Gold         = 200,
-                Gems         = 10,
-                OwnedSpecies = new[] { "rabbit" },
-                ClosedAtUtc  = DateTime.UtcNow,
-            };
-            _state.AnimalCounts["rabbit"] = 1;
-            _state.AnimalMeters["rabbit"] = new AnimalMeters();
+                _state.Gold         = 200;
+                _state.Gems         = 10;
+                _state.OwnedSpecies = new[] { "rabbit" };
+                _state.AnimalCounts["rabbit"] = 1;
+                _state.AnimalMeters["rabbit"] = new AnimalMeters();
+            }
 
             _bus         = new EventBus();
             _currency    = new CurrencyService(_state);
@@ -178,12 +184,24 @@ namespace AWZ.UI
             _care        = new CareService(_state, _level, _bus);
             _collection  = new CollectionService(_state, _currency, _level,
                                DefaultAnimalData.AppealOf, DefaultAnimalData.UnlockLevelOf);
+            _idle        = new IdleService(_state, _economy, _currency);
+
+            // Fe7 — grant offline income accrued since ClosedAtUtc (0 on a fresh game).
+            _offlineGold = _idle.ComputeOffline(DateTime.UtcNow);
+            _idle.CollectPending();
 
             ZooRosterBus.Publish(_state.OwnedSpecies); // drive the world map from owned species
             Debug.Log("[GameApp] Domain built. UI Toolkit runtime UI active.");
         }
 
         private void Reset() => BuildDomain();
+
+        // F3 — flush immediately on quit so the final state (and ClosedAtUtc, used by offline) persists.
+        private void OnApplicationQuit()
+        {
+            if (_save != null && _state != null)
+                _save.Flush(_state, DateTime.UtcNow);
+        }
 
         // ── Cost formulas (display only — mirror service formulas) ────────────
         private long BuyCost(string key)
@@ -508,6 +526,56 @@ namespace AWZ.UI
             _splashAnim = null;
             if (_splash != null) { _splash.RemoveFromHierarchy(); _splash = null; }
             _root.style.backgroundColor = Color.clear; // restore transparency for the Zoo world view
+
+            // Fe7 — surface offline earnings once the game view is revealed.
+            if (_offlineGold > 0) { ShowOfflineModal(_offlineGold); _offlineGold = 0; }
+        }
+
+        /// <summary>Fe7 — "welcome back" overlay reporting offline gold (already credited).</summary>
+        private void ShowOfflineModal(long gold)
+        {
+            var scrim = new VisualElement();
+            scrim.style.position        = Position.Absolute;
+            scrim.style.left            = 0;
+            scrim.style.top             = 0;
+            scrim.style.right           = 0;
+            scrim.style.bottom          = 0;
+            scrim.style.backgroundColor = new Color(0f, 0f, 0f, 0.55f);
+            scrim.style.alignItems      = Align.Center;
+            scrim.style.justifyContent  = Justify.Center;
+
+            var card = new VisualElement();
+            card.style.backgroundColor         = ColCardBg;
+            card.style.paddingLeft             = 24;
+            card.style.paddingRight            = 24;
+            card.style.paddingTop              = 20;
+            card.style.paddingBottom           = 20;
+            card.style.borderTopLeftRadius     = 14;
+            card.style.borderTopRightRadius    = 14;
+            card.style.borderBottomLeftRadius  = 14;
+            card.style.borderBottomRightRadius = 14;
+            card.style.alignItems              = Align.Center;
+
+            var title = new Label("Welcome back!");
+            title.style.fontSize                = 18;
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            title.style.color                   = ColTextDark;
+            title.style.marginBottom            = 8;
+            card.Add(title);
+
+            var body = new Label($"While you were away your zoo earned\n+{gold:n0} gold.");
+            body.style.fontSize    = 14;
+            body.style.color       = ColTextMid;
+            body.style.whiteSpace  = WhiteSpace.Normal;
+            body.style.marginBottom = 16;
+            body.style.unityTextAlign = TextAnchor.MiddleCenter;
+            card.Add(body);
+
+            card.Add(MakeEconButton("Collect", () => scrim.RemoveFromHierarchy()));
+
+            scrim.Add(card);
+            _root.Add(scrim);
+            scrim.BringToFront();
         }
 
         /// <summary>Absolute full-bleed column overlay (above the splash image) for text/bar.</summary>
@@ -1769,7 +1837,7 @@ namespace AWZ.UI
             nameLbl.style.unityFontStyleAndWeight = FontStyle.Bold;
             nameCol.Add(nameLbl);
 
-            var rewardLbl = new Label($"+{goldReward:n0} gold   |   {cooldown:0}s cooldown");
+            var rewardLbl = new Label($"+{goldReward:n0} gold   +{goldReward / 8:n0} XP   |   {cooldown:0}s cooldown");
             rewardLbl.style.fontSize = 11;
             rewardLbl.style.color    = ColTextLight;
             nameCol.Add(rewardLbl);
@@ -1825,6 +1893,7 @@ namespace AWZ.UI
                     var doBtn = MakeCareButton($"Do (+{goldReward:n0}g)", "icon:coin", () =>
                     {
                         _currency.Grant(CurrencyType.Gold, goldReward);
+                        _level.AddXp((int)(goldReward / 8));   // S-6: activities now feed XP, not just gold
                         _activityLastUsed[actName] = Time.time;
                         FullRefresh();
                     });

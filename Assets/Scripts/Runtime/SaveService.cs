@@ -140,7 +140,8 @@ namespace AWZ.Runtime
 
             state.ClaimedQuestIds = new HashSet<string>(blob.claimedQuestIds ?? Array.Empty<string>());
 
-            // AnimalMeters are not serialized in v1 — they will be rebuilt from defaults.
+            state.AnimalMeters = MetersFromBlob(blob.animalMeterKeys,
+                blob.meterHunger, blob.meterThirst, blob.meterClean, blob.meterHappy, blob.meterTrust);
 
             return state;
         }
@@ -169,6 +170,11 @@ namespace AWZ.Runtime
             DictToBlob(state.EnclosureLevels,  out blob.enclosureLevelKeys,  out blob.enclosureLevelValues);
             DictToBlob(state.EnrichmentLevels, out blob.enrichmentLevelKeys, out blob.enrichmentLevelValues);
 
+            MetersToBlob(state.AnimalMeters,
+                out blob.animalMeterKeys,
+                out blob.meterHunger, out blob.meterThirst, out blob.meterClean,
+                out blob.meterHappy,  out blob.meterTrust);
+
             return blob;
         }
 
@@ -188,6 +194,47 @@ namespace AWZ.Runtime
             values = new int[dict.Count];
             int i  = 0;
             foreach (var kv in dict) { keys[i] = kv.Key; values[i] = kv.Value; i++; }
+        }
+
+        private static Dictionary<string, AnimalMeters> MetersFromBlob(
+            string[] keys, float[] hunger, float[] thirst, float[] clean, float[] happy, float[] trust)
+        {
+            var dict = new Dictionary<string, AnimalMeters>();
+            if (keys == null) return dict;
+            for (int i = 0; i < keys.Length; i++)
+            {
+                dict[keys[i]] = new AnimalMeters
+                {
+                    Hunger = Arr(hunger, i, 80f),
+                    Thirst = Arr(thirst, i, 80f),
+                    Clean  = Arr(clean,  i, 80f),
+                    Happy  = Arr(happy,  i, 80f),
+                    Trust  = Arr(trust,  i, 0f),
+                };
+            }
+            return dict;
+        }
+
+        private static float Arr(float[] a, int i, float fallback)
+            => (a != null && i < a.Length) ? a[i] : fallback;
+
+        private static void MetersToBlob(
+            Dictionary<string, AnimalMeters> dict,
+            out string[] keys, out float[] hunger, out float[] thirst,
+            out float[] clean, out float[] happy, out float[] trust)
+        {
+            int n  = dict.Count;
+            keys   = new string[n];
+            hunger = new float[n]; thirst = new float[n]; clean = new float[n];
+            happy  = new float[n]; trust  = new float[n];
+            int i  = 0;
+            foreach (var kv in dict)
+            {
+                keys[i]   = kv.Key;
+                hunger[i] = kv.Value.Hunger; thirst[i] = kv.Value.Thirst; clean[i] = kv.Value.Clean;
+                happy[i]  = kv.Value.Happy;  trust[i]  = kv.Value.Trust;
+                i++;
+            }
         }
 
         // ── Serializable blob ────────────────────────────────────────────────────
@@ -215,6 +262,12 @@ namespace AWZ.Runtime
             public string[] claimedQuestIds;
             public long   offlinePendingGold;
             public string closedAtUtc;
+            public string[] animalMeterKeys;
+            public float[]  meterHunger;
+            public float[]  meterThirst;
+            public float[]  meterClean;
+            public float[]  meterHappy;
+            public float[]  meterTrust;
         }
     }
 }

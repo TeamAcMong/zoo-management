@@ -1,13 +1,39 @@
 ---
-status: proposed-redesign
+status: finalized-direction
 date: 2026-06-06
+finalized: 2026-06-23
 author: Genji240696 + Claude
 revises: zoo-economy.md (C2), habitat-system.md (Fe2), enrichment.md (Fe3), attractions.md (Fe4)
 ---
 
 # Economy Redesign — Role-Differentiated Sinks + Day/Night Visitor Rhythm
 
-> ⚠️ **STATUS: PROPOSAL — NOT YET IMPLEMENTED.**
+> ✅ **FINALIZED DIRECTION — 2026-06-23 (Genji + Claude).** Chốt mô hình 4-trục, role-differentiated
+> bên dưới. Đã verify trong prototype chơi được `awz-play.html`. C# port spec:
+> `production/economy-csharp-refactor-spec-2026-06-23.md` (áp khi mở Unity).
+>
+> **Công thức chốt (một nơi = TuningConfig):**
+> ```
+> happyFactor(k) = clamp(0.4 + welfare(k)/100, 0.5, 1.4)        // welfare = mean 4 care meters
+> qualityOf(k)   = 1 + 0.08*enrLv + 0.15*(encLv-1)              // CỘNG trong trục (chống multiplier-soup)
+> appealOf(k)    = tier(k) * rarity(k) * qualityOf(k) * happyFactor(k)      // KHÔNG *count
+> totalAppeal    = (1 + 0.05*(distinctOwned-1)) * Σ appealOf(k) // diversity ở cấp-zoo
+> seatsOf(k)     = count(k) * 2 * (1 + 0.5*(encLv-1))
+> capacity       = round((10 + Σ seatsOf) * (1 + 0.15*built))
+> visitors       = min(round(totalAppeal * 1.0), capacity)
+> returnBonus    = 1 + min(reputation,1000)/1000 * 0.5
+> goldPerSec     = max(1, round(visitors * 0.5 * returnBonus * (1 + 0.12*built)))
+> ```
+> **4 trục trực giao:** APPEAL (tier×rarity×quality×happy×diversity) · CAPACITY (habitat slots) ·
+> SPEND/khách (attractions) · RETURN (reputation).
+> **3 quyết định đã chốt:** (1) happiness CHỈ ở appeal, không nhân lại ở revenue; (2) rarity field
+> mặc định 1.0 (tier gánh chính); (3) `count` chỉ cộng capacity (ghế), KHÔNG cộng appeal — late-game
+> hết phụ thuộc mua bản sao. **Quy tắc:** cộng trong-trục, nhân giữa-trục.
+>
+> *(Phần proposal gốc bên dưới giữ làm lịch sử; công thức chốt là phần trên. "Day/Night rhythm"
+> chưa nằm trong scope chốt này — để pha sau.)*
+
+> ⚠️ **STATUS (gốc): PROPOSAL — NOT YET IMPLEMENTED.**
 > The current code in `act/prototype.jsx` and the values in `design/registry/entities.yaml`
 > reflect the **pre-redesign** model (all four investments feed `appeal`; no day/night
 > cycle). This document is the **target design**. Every number is a design target pending

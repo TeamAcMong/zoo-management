@@ -11,6 +11,7 @@ namespace AWZ.Domain
     {
         private const int BuyCostMult  = 50;
         private const int BuyCostFloor = 50;
+        private const int XpPerAdopt   = 40;   // S-5: one-time XP for adopting a new species
 
         private readonly GameState           _state;
         private readonly ICurrencyService    _currency;
@@ -50,6 +51,7 @@ namespace AWZ.Domain
             if (!_state.AnimalCounts.ContainsKey(speciesKey))
                 _state.AnimalCounts[speciesKey] = 0;
 
+            _level.AddXp(XpPerAdopt);   // S-5: was missing — adoption granted 0 XP
             return true;
         }
 

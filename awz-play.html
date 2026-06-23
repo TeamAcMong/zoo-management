@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Animal World Zoo — Playable (redesign model)</title>
+<style>
+  :root{--bg:#fbf3e6;--card:#fff;--ink:#2a2a33;--mid:#60606b;--light:#9a9aa4;
+        --line:#a3d4e4;--green:#37b76b;--amber:#f2b22a;--blue:#66a8db;--lock:#9a9aa4;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#d7e8ef;font:15px/1.5 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink)}
+  #app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
+  #hud{position:sticky;top:0;z-index:5;background:#3aa0c4;color:#fff;padding:8px 10px;
+       display:flex;gap:6px;flex-wrap:wrap;align-items:center;border-bottom:3px solid #2c7c9a}
+  .pill{background:#fff;color:#2a2a33;border-radius:20px;padding:3px 10px;font-weight:700;font-size:13px;display:flex;gap:4px;align-items:center}
+  .xpwrap{flex:1 1 100%;display:flex;align-items:center;gap:6px;margin-top:4px}
+  .xptrack{flex:1;height:10px;background:#1f6a86;border-radius:6px;overflow:hidden}
+  .xpfill{height:100%;background:#7bd3ff;width:0%}
+  .small{font-size:11px;color:#dff;font-weight:600}
+  #body{flex:1;overflow-y:auto;padding:10px 10px 80px}
+  #nav{position:sticky;bottom:0;display:flex;background:#fff;border-top:1px solid #ddd}
+  #nav button{flex:1;border:0;background:none;padding:9px 0 11px;font-size:11px;font-weight:700;color:var(--light);cursor:pointer}
+  #nav button.on{color:var(--green)}
+  #nav button .ic{display:block;font-size:20px;margin-bottom:1px}
+  h2{font-size:15px;margin:6px 2px 8px;color:#1c7a43}
+  .card{background:var(--card);border:1px solid var(--line);border-bottom-width:2px;border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .row{display:flex;align-items:center;gap:8px}
+  .grow{flex:1}
+  .emoji{font-size:30px;width:40px;text-align:center}
+  .name{font-weight:700}
+  .sub{font-size:12px;color:var(--mid)}
+  .tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:9px}
+  .tag.lock{background:#ededed;color:var(--lock)}
+  .tag.max{background:#e3f6ea;color:#1c7a43}
+  button.act{border:0;border-radius:9px;padding:7px 12px;font-weight:700;font-size:13px;cursor:pointer;color:#fff}
+  .b-green{background:var(--green)} .b-amber{background:var(--amber);color:#3a2c00} .b-blue{background:var(--blue)}
+  button.act:disabled{background:#cfcfcf;color:#888;cursor:not-allowed}
+  .meters{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:8px 0}
+  .meter{font-size:11px}
+  .mtrack{height:8px;background:#eee;border-radius:5px;overflow:hidden;margin-top:2px}
+  .mfill{height:100%}
+  .care{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:6px}
+  .care button{font-size:12px;padding:7px 0}
+  .econ{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .econ button{flex:1;min-width:120px;font-size:12px}
+  .note{background:#fff7e2;border:1px solid #f0d68a;border-radius:10px;padding:8px 10px;font-size:12px;color:#7a5b10;margin-bottom:8px}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:20}
+  .modal .box{background:#fff;border-radius:14px;padding:22px 24px;text-align:center;max-width:300px}
+  .modal h3{margin:0 0 6px}
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#2a2a33;color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;z-index:15;opacity:0;transition:opacity .2s}
+  .toast.show{opacity:1}
+  .devbtn{background:#e6e6e6;color:#444;border:0;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;margin:3px;cursor:pointer}
+  .glow{animation:pulse 1.1s infinite;border-radius:11px}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(46,158,91,.95)}50%{box-shadow:0 0 0 8px rgba(46,158,91,.25)}}
+  #nav button:disabled,#nav button.lk{opacity:.4}
+  .diag{font-size:11px;color:var(--mid);margin-top:4px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud"></div>
+  <div id="body"></div>
+  <div id="nav"></div>
+</div>
+<div id="overlay"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   Animal World Zoo — playable prototype of the REDESIGNED economy (2026-06-23).
+   4 trục trực giao:
+     APPEAL (cầu)  = tier × rarity × quality(enr,habitat) × happy × diversity
+     CAPACITY (cung) = habitat slots (count × enclosure)
+     SPEND/khách    = attractions
+     RETURN          = reputation → returnVisitorBonus
+   Quy tắc đã chốt: count KHÔNG cộng appeal (chỉ cộng capacity); happiness CHỈ ở
+   appeal (không nhân lại ở revenue); rarity field = 1.0 (tier gánh chính);
+   diversity ở cấp-zoo; sub-factor môi trường CỘNG trong trục (chống multiplier-soup).
+============================================================================ */
+
+// ── Roster (tier ~ baseAppeal ladder; rarity mặc định 1.0) ──────────────────
+const ANIMALS=[
+  {key:"rabbit",  name:"Rabbit",   emoji:"🐰", tier:3,   rarity:1, unlock:1},
+  {key:"chicken", name:"Chicken",  emoji:"🐔", tier:8,   rarity:1, unlock:2},
+  {key:"goat",    name:"Goat",     emoji:"🐐", tier:14,  rarity:1, unlock:2},
+  {key:"sheep",   name:"Sheep",    emoji:"🐑", tier:30,  rarity:1, unlock:3},
+  {key:"pig",     name:"Pig",      emoji:"🐷", tier:50,  rarity:1, unlock:4},
+  {key:"deer",    name:"Deer",     emoji:"🦌", tier:70,  rarity:1, unlock:5},
+  {key:"penguin", name:"Penguin",  emoji:"🐧", tier:85,  rarity:1.2, unlock:7},
+  {key:"monkey",  name:"Monkey",   emoji:"🐒", tier:130, rarity:1, unlock:9},
+  {key:"zebra",   name:"Zebra",    emoji:"🦓", tier:150, rarity:1, unlock:11},
+  {key:"giraffe", name:"Giraffe",  emoji:"🦒", tier:170, rarity:1.2, unlock:13},
+  {key:"lion",    name:"Lion",     emoji:"🦁", tier:190, rarity:1.5, unlock:15},
+  {key:"elephant",name:"Elephant", emoji:"🐘", tier:230, rarity:1.3, unlock:18},
+];
+const ANIMAL=Object.fromEntries(ANIMALS.map(a=>[a.key,a]));
+const ATTRACTIONS=[  // gates cho FTUE prototype: khu vui chơi đầu mở ở Lv3
+  {key:"petting",name:"Petting Area",     cost:150,  unlock:3},
+  {key:"feeding",name:"Feeding Zone",     cost:500,  unlock:4},
+  {key:"shows",  name:"Animal Shows",     cost:1500, unlock:6},
+  {key:"rides",  name:"Safari Rides",     cost:4000, unlock:8},
+  {key:"arena",  name:"Performance Arena",cost:12000,unlock:10},
+];
+const ACTIVITIES=[
+  {name:"Rabbit Photo",animal:"rabbit",gold:120,cd:10},
+  {name:"Goat Feeding",animal:"goat",gold:250,cd:15},
+  {name:"Monkey Show", animal:"monkey",gold:600,cd:20},
+  {name:"Lion Encounter",animal:"lion",gold:1200,cd:30},
+  {name:"Elephant Ride", animal:"elephant",gold:1500,cd:30},
+];
+
+// ── Tuning knobs (one place) ────────────────────────────────────────────────
+const K={
+  VISITORS_PER_APPEAL:1.0,
+  SPEND_PER_VISITOR:0.5,
+  BASE_CAP:10, SEAT_BASE:2,        // capacity = (BASE_CAP + Σ seats)×attrCap
+  ENR_QUAL:0.08, HAB_QUAL:0.15,    // appeal quality: 1 + ENR·enr + HAB·(enc-1)  (CỘNG trong trục)
+  SEAT_ENC:0.5,                    // seats per animal = SEAT_BASE×(1+SEAT_ENC·(enc-1))
+  DIVERSITY_STEP:0.05,             // totalAppeal ×= 1+STEP×(distinct-1)
+  ATTR_SPEND:0.12, ATTR_CAP:0.15,  // per built attraction
+  REP_PER_ACTIVITY:2, REP_CAP:1000, RETURN_MAX:0.5,  // returnBonus = 1 + min(rep,CAP)/CAP×MAX
+  XP_PER_VISITOR:0.1,              // #1 Education XP/visitor/giây — backbone passive (bật mặc định, scale theo visitor)
+  BUILD_XP_DIVISOR:20,             // #3 Build/Upgrade/Enrich XP = round(cost / divisor)
+};
+
+// ── Level curve (linear anchors — matches shipping LevelService) ────────────
+const MAX_LEVEL=92;
+// Front-loaded FTUE curve: cấp đầu rất nhỏ (1 phiên chăm ≈ 1 cấp), geometric sau Lv10.
+// Lv2=60 → adopt(+40) + ~7 care tap ≈ đủ. Re-tune ở đây.
+const EARLY=[0,0,25,90,180,320,520,800,1200,1750,2500]; // EARLY[level] 1..10 (Lv2=25: chăm xong là gần lên)
+function xpAtLevel(L){if(L<=1)return 0;if(L<=10)return EARLY[L];return Math.round(3600*Math.pow(1.12,L-10));}
+function levelFromXp(xp){if(xp<=0)return 1;let L=1;while(L<MAX_LEVEL&&xp>=xpAtLevel(L+1))L++;return L;}
+
+// ── State ───────────────────────────────────────────────────────────────────
+const SAVE_KEY="awz_play_save_v16";  // bumped: giá mua theo sức hút + chăm <85/giá động 3g/điểm + vàng đầu 250
+let S=null;
+function newGame(){return{gold:250,gems:10,rep:0,xp:0,level:1,
+  owned:[],counts:{},enc:{},enr:{},built:[],meters:{},activityLast:{},
+  dailyGiftClaimed:false,closedAt:Date.now(),passiveXp:true,xpPerVisitor:K.XP_PER_VISITOR,
+  xpLocked:true,guide:"first",guided:[],freeUsed:[],caredStats:[]};}   // caredStats = các chỉ số đã chăm trong bước hướng dẫn
+function m(){return{h:80,t:80,c:80,p:80};}
+
+// ── Economy — the redesigned 4-axis model ──────────────────────────────────
+function welfare(k){const x=S.meters[k]||m();return (x.h+x.t+x.c+x.p)/4;}
+function happyFactor(k){return Math.max(0.5,Math.min(1.4,0.4+welfare(k)/100));}     // 0.5..1.4, happiness lives HERE
+function qualityOf(k){const enc=S.enc[k]||1,enr=S.enr[k]||0;return 1+K.ENR_QUAL*enr+K.HAB_QUAL*(enc-1);} // additive in-axis
+function appealOf(k){const a=ANIMAL[k];if((S.counts[k]||0)<=0)return 0;            // NOTE: no ×count
+  return a.tier*a.rarity*qualityOf(k)*happyFactor(k);}
+function distinctOwned(){return S.owned.filter(k=>(S.counts[k]||0)>0).length;}
+function diversityBonus(){return 1+K.DIVERSITY_STEP*Math.max(0,distinctOwned()-1);}
+function totalAppeal(){let s=0;for(const k of S.owned)s+=appealOf(k);return diversityBonus()*s;}
+function seatsOf(k){const c=S.counts[k]||0,enc=S.enc[k]||1;return c*K.SEAT_BASE*(1+K.SEAT_ENC*(enc-1));}
+function capacity(){let seats=0;for(const k of S.owned)seats+=seatsOf(k);
+  return Math.round((K.BASE_CAP+seats)*(1+K.ATTR_CAP*S.built.length));}
+function visitorsNow(){return Math.min(Math.round(totalAppeal()*K.VISITORS_PER_APPEAL),capacity());}
+function returnBonus(){return 1+Math.min(S.rep,K.REP_CAP)/K.REP_CAP*K.RETURN_MAX;}
+function goldPerSec(){return Math.max(1,Math.round(visitorsNow()*K.SPEND_PER_VISITOR*returnBonus()*(1+K.ATTR_SPEND*S.built.length)));}
+// which axis is the bottleneck right now? (diagnosis helper)
+function bottleneck(){const d=Math.round(totalAppeal()),c=capacity();
+  if(d<c*0.9)return "Khách còn ít — chăm cho thú vui hơn hoặc nuôi thêm loài để sở thú hấp dẫn hơn.";
+  if(d>c*1.1)return "Khách đông kín cửa — bấm Nâng chuồng để chứa thêm khách.";
+  return "Khá ổn — thử xây Khu vui chơi để khách tiêu nhiều tiền hơn.";}
+
+// ── Costs ───────────────────────────────────────────────────────────────────
+const PRICE_PER_APPEAL=25;                              // giá ≈ độ hấp dẫn (tier×rarity) × hệ số này
+const baseAppealOf=k=>ANIMAL[k].tier*ANIMAL[k].rarity; // độ hấp dẫn nền (ổn định, không đổi theo happy)
+const buyCost   =k=>Math.round(baseAppealOf(k)*PRICE_PER_APPEAL*(1+0.6*(S.counts[k]||0)));  // con ĐẦU = giá theo sức hút; mỗi bản sao thêm +0.6× (capacity sink)
+const upgradeCost=k=>Math.round(ANIMAL[k].tier*80*(S.enc[k]||1))+300;
+const enrichCost =k=>Math.round(ANIMAL[k].tier*20*((S.enr[k]||0)+1))+200;
+// Lần ĐẦU của mỗi tính năng (buy/upgrade/enrich/build) miễn phí; các lần sau tính tiền theo bảng.
+function payFor(feat,real){if(!S.freeUsed.includes(feat)){S.freeUsed.push(feat);return true;} if(S.gold<real)return false; S.gold-=real; return true;}
+function costLabel(feat,real){return S.freeUsed.includes(feat)?real.toLocaleString()+'g':'Miễn phí';}
+
+// ── Actions ─────────────────────────────────────────────────────────────────
+const CARE_OK=85;        // chỉ số ≥85 thì CHƯA cần chăm
+const CARE_PER_POINT=3;  // giá KHÔNG cố định: mỗi điểm hồi phục = 3 vàng
+const careCost=(k,stat)=>Math.ceil((100-((S.meters[k]||m())[stat]))*CARE_PER_POINT);
+function care(k,stat){const mm=S.meters[k]||(S.meters[k]=m());
+  if(mm[stat]>=CARE_OK){toast("Chỉ số còn cao, chưa cần chăm 🙂");return;}  // <85 mới cần chăm
+  if(!payFor('care',careCost(k,stat))){toast("Không đủ vàng");return;}      // lần đầu miễn phí; sau đó 3 vàng/điểm hồi phục
+  mm[stat]=100;careGuideTick(stat);addXp(3);afterAction();}                 // chăm = hồi đầy về 100
+function addXp(n){if(S.xpLocked)return;S.xp+=n;const d=levelFromXp(S.xp);if(d>S.level){S.level=d;toast("⬆️ Level "+d+"!");maybeGuide(d);}}
+function adopt(k){if(S.level<ANIMAL[k].unlock)return;
+  const first=S.guide==='first';
+  if(!S.owned.includes(k)){S.owned.push(k);S.counts[k]=0;S.meters[k]=m(); if(!first)addXp(40);}  // con ĐẦU không +XP (chỉ mở khóa XP)
+  guideAction('first');guideAction('adopt');
+  buyMore(k);}
+function buyMore(k){
+  if((S.counts[k]||0)>=(S.enc[k]||1)){toast("Chuồng đầy — hãy nâng chuồng để nuôi thêm");return;}  // chuồng Lv N chứa tối đa N con
+  const c=buyCost(k);if(!payFor('buy',c)){toast("Không đủ vàng");return;}S.counts[k]=(S.counts[k]||0)+1;guideAction('buymore');afterAction();}
+function buildXp(cost){return Math.round(cost/K.BUILD_XP_DIVISOR);}   // #3 gold-spend → progression XP
+function upgrade(k){if((S.enc[k]||1)>=5){toast("Đã tối đa");return;}const c=upgradeCost(k);if(!payFor('upgrade',c)){toast("Không đủ vàng");return;}S.enc[k]=(S.enc[k]||1)+1;guideAction('econ');const xp=buildXp(c);addXp(xp);toast("Nâng chuồng! +"+xp+" XP");afterAction();}
+function enrich(k){if((S.enr[k]||0)>=5){toast("Đã tối đa");return;}const c=enrichCost(k);if(!payFor('enrich',c)){toast("Không đủ vàng");return;}S.enr[k]=(S.enr[k]||0)+1;const xp=buildXp(c);addXp(xp);toast("Thêm đồ chơi! +"+xp+" XP");afterAction();}
+function build(a){if(S.built.includes(a.key))return;if(S.level<a.unlock){toast("Chưa tới level");return;}if(!payFor('build',a.cost)){toast("Không đủ vàng");return;}S.built.push(a.key);guideAction('attract');const xp=buildXp(a.cost);addXp(xp);toast("Đã xây! +"+xp+" XP");afterAction();}
+function doActivity(act){if(!S.owned.includes(act.animal))return;
+  const rem=act.cd-(Date.now()-(S.activityLast[act.name]||0))/1000;if(rem>0)return;
+  S.gold+=act.gold;addXp(Math.floor(act.gold/8));S.rep+=K.REP_PER_ACTIVITY;S.activityLast[act.name]=Date.now();
+  guideAction('activities');toast("+"+act.gold+"g  +"+Math.floor(act.gold/8)+" XP  +"+K.REP_PER_ACTIVITY+" 💗");afterAction();}
+function gem2gold(g,gold){if(S.gems<g)return;S.gems-=g;S.gold+=gold;afterAction();}
+function dailyGift(){if(S.dailyGiftClaimed)return;S.dailyGiftClaimed=true;S.gold+=200;toast("+200 vàng");afterAction();}
+function togglePassive(){S.passiveXp=!S.passiveXp;toast(S.passiveXp?"XP thụ động: BẬT":"XP thụ động: TẮT");afterAction();}
+function setK(v){S.xpPerVisitor=Math.max(0,+v||0);save();}
+function simOffline(){S.closedAt=Date.now()-8*3600*1000;save();applyOffline();afterAction();}
+function hardReset(){localStorage.removeItem(SAVE_KEY);S=newGame();afterAction();toast("Đã reset");}
+function afterAction(){save();render();}
+
+// ── Tutorial / FTUE: bài học nhỏ giọt theo LEVEL (popup khi đạt từng cấp) ────
+// Spotlight guide: mỗi cấp mở 1 tính năng + làm sáng đúng nút, bấm là xong & mở tính năng kế.
+const TAB_LV={animals:1,shop:2,attract:3,activities:5,dev:1};   // khóa tab tới khi đủ cấp
+const FEAT_AT_LV={2:"adopt",3:"attract",4:"econ",5:"activities"};   // Lv1: 'first'→'care' theo chuỗi
+const FEAT_TAB={care:"animals",adopt:"animals",econ:"animals",buymore:"animals",attract:"attract",activities:"activities"};
+const GUIDE_TEXT={
+  first:"Chào mừng đến vườn thú! Hãy nuôi một con thú để đón những vị khách đầu tiên.",
+  care:"Hãy chăm sóc thú để chúng vui khỏe — thú càng vui, vườn thú càng đông khách.",
+  adopt:"Hãy nuôi thêm loài thú mới để vườn thú hấp dẫn và đông khách hơn.",
+  attract:"Hãy xây khu vui chơi để khách ở lại lâu hơn và chi tiêu nhiều hơn.",
+  econ:"Hãy nâng chuồng để nuôi được nhiều thú hơn — chuồng cấp mấy thì nuôi được bấy nhiêu con.",
+  buymore:"Chuồng đã rộng hơn — hãy nuôi thêm một con thú nữa nhé.",
+  activities:"Hãy làm hoạt động để kiếm thêm tiền và danh tiếng.",
+};
+function maybeGuide(L){const f=FEAT_AT_LV[L]; if(f&&!S.guided.includes(f)&&S.guide!==f){S.guide=f; showGuidePopup(f);}}  // KHÔNG tự chuyển tab; nav sẽ sáng để user tự bấm
+function guideAction(f){
+  if(S.guide!==f)return;
+  if(f==="first"){S.xpLocked=false; if(!S.guided.includes("first"))S.guided.push("first"); S.guide="care"; showGuidePopup("care"); return;}  // mua con đầu → mở XP → dạy chăm sóc
+  if(f==="econ"){if(!S.guided.includes("econ"))S.guided.push("econ"); S.guide="buymore"; showGuidePopup("buymore"); return;}  // nâng chuồng xong → dạy nuôi thêm
+  if(!S.guided.includes(f))S.guided.push(f);
+  S.guide="";
+}
+// Bước chăm sóc: phải chăm đủ CẢ 4 chỉ số rồi mới hiện thông báo + xong bước.
+function careGuideTick(stat){
+  if(S.guide!=='care')return;
+  if(!S.caredStats.includes(stat))S.caredStats.push(stat);
+  if(S.caredStats.length>=4){
+    if(!S.guided.includes('care'))S.guided.push('care');
+    S.guide="";
+    showModal("Đã chăm sóc thú xong! 🎉","Vườn thú sẽ <b>tăng người đến thăm</b> → bạn nhận thêm <b>vàng</b> và <b>kinh nghiệm</b> để lên cấp.", GUIDE_DELAY);
+  }
+}
+const GUIDE_DELAY=2000;   // ms — nút OK trên popup hướng dẫn bị khóa + đếm ngược để user kịp đọc
+function showGuidePopup(f){if(!GUIDE_TEXT[f])return; showModal("🐾 Hướng dẫn", GUIDE_TEXT[f], GUIDE_DELAY);}
+function guideCareStat(){if(S.guide!=='care')return''; return ['h','t','c','p'].find(s=>!S.caredStats.includes(s))||'';}  // chỉ số cần chăm KẾ TIẾP (sáng từng nút)
+let _glow={};  // reset mỗi render; chỉ cho 1 nút sáng mỗi loại
+function glowMark(type){if(_glow[type])return''; _glow[type]=1; return 'glow';}
+function careBtn(k,stat,label){const mm=S.meters[k]||m(),ok=mm[stat]>=CARE_OK;const glow=guideCareStat()===stat?'glow':'';
+  return `<button class="act b-green ${glow}" ${ok?'disabled':''} onclick="care('${k}','${stat}')">${label}${ok?' ✓':' · '+costLabel('care',careCost(k,stat))}</button>`;}
+
+// ── Idle / offline ───────────────────────────────────────────────────────────
+function applyOffline(){if(S.xpLocked)return;   // chưa mua thú → chưa có thu nhập offline
+  const el=Math.max(0,(Date.now()-S.closedAt)/1000),cap=Math.min(el,28800);
+  const gain=Math.floor(cap*goldPerSec()*0.60);
+  const xpGain=S.passiveXp?Math.floor(cap*visitorsNow()*(S.xpPerVisitor||2)*0.60):0;
+  if(gain>0)S.gold+=gain;if(xpGain>0)addXp(xpGain);
+  if(gain>0||xpGain>0)showModal("Welcome back!","Zoo của bạn kiếm được<br><b>+"+gain.toLocaleString()+" vàng</b>"+
+    (xpGain>0?"<br><b>+"+xpGain.toLocaleString()+" XP</b> (thụ động)":"")+
+    "<br><span class='sub'>("+Math.floor(cap/60)+" phút · 60% · cap 8h)</span>");}
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+function save(){S.closedAt=Date.now();try{localStorage.setItem(SAVE_KEY,JSON.stringify(S));}catch(e){}}
+function load(){try{const j=localStorage.getItem(SAVE_KEY);if(j)return Object.assign(newGame(),JSON.parse(j));}catch(e){}return null;}
+
+// ============================ UI ==============================================
+let tab="animals";
+const $=id=>document.getElementById(id);
+function setTab(t){if(S.level<TAB_LV[t]){toast("Đạt Cấp "+TAB_LV[t]+" để mở khóa");return;}tab=t;render();}
+function meterBar(l,v,c){return `<div class="meter">${l}: ${Math.round(v)}<div class="mtrack"><div class="mfill" style="width:${v}%;background:${c}"></div></div></div>`;}
+
+function renderHud(){
+  const xpLo=xpAtLevel(S.level),xpHi=xpAtLevel(S.level+1);
+  const pct=S.level>=MAX_LEVEL?100:Math.max(0,Math.min(100,(S.xp-xpLo)/(xpHi-xpLo)*100));
+  $("hud").innerHTML=`
+    <div class="pill">🪙 ${Math.floor(S.gold).toLocaleString()}${S.xpLocked?' 🔒':''}</div>
+    <div class="pill">💎 ${S.gems}</div>
+    <div class="pill">⭐ Lv ${S.level}</div>
+    <div class="pill">💗 ${S.rep}</div>
+    <div class="pill">📈 ${goldPerSec().toLocaleString()}/s</div>
+    <div class="pill">👥 ${visitorsNow()}/${capacity()}</div>
+    ${S.passiveXp?`<div class="pill" style="background:#2e9e5b;color:#fff">🌙 +${(visitorsNow()*(S.xpPerVisitor||2)).toFixed(1)} XP/s</div>`:''}
+    <div class="xpwrap"><span class="small">XP</span><div class="xptrack"><div class="xpfill" style="width:${S.xpLocked?0:pct}%"></div></div>
+      <span class="small">${S.xpLocked?"🔒":(S.level>=MAX_LEVEL?"MAX":Math.round(S.xp-xpLo)+" / "+Math.round(xpHi-xpLo))}</span></div>`;
+}
+function renderNav(){const t=[["animals","🦁","Sở thú"],["attract","🎡","Vui chơi"],["activities","🎯","Hoạt động"],["shop","🛒","Cửa hàng"],["dev","🛠️","Dev"]];
+  const gt=S.guide?FEAT_TAB[S.guide]:'';   // tab mà bước hướng dẫn đang nhắm tới
+  $("nav").innerHTML=t.map(([id,ic,lb])=>{const lk=S.level<TAB_LV[id]; const gl=(gt===id&&tab!==id&&!lk);  // sáng nav khi cần dẫn user sang tab khác
+    return `<button class="${tab===id?'on':''} ${lk?'lk':''} ${gl?'glow':''}" onclick="setTab('${id}')"><span class="ic">${lk?'🔒':ic}</span>${lb}</button>`;}).join("");}
+
+function renderBody(){
+  let h="";
+  _glow={};
+  if(tab==="animals"){
+    if(S.level>=4)h+=`<div class="note">💡 <b>Sức hút</b> (khách muốn đến cỡ nào) đến từ <b>nhiều loài khác nhau</b> + <b>thú vui khỏe</b> + <b>nâng chuồng/đồ chơi</b>. Nuôi nhiều con CÙNG loài chỉ <b>chứa thêm khách</b>.<br>👉 <b>${bottleneck()}</b></div>`;
+    if(S.owned.length)h+=`<h2>Sở hữu</h2>`;
+    for(const k of S.owned){const a=ANIMAL[k],mm=S.meters[k]||m(),enc=S.enc[k]||1,enr=S.enr[k]||0,c=S.counts[k]||0;
+      h+=`<div class="card">
+        <div class="row"><div class="emoji">${a.emoji}</div><div class="grow">
+          <div class="name">${a.name}</div>
+          <div class="sub">Sức hút ${appealOf(k).toFixed(0)} · Chuồng Lv${enc} · vui ×${happyFactor(k).toFixed(2)}</div></div>
+          <span class="tag" style="font-size:13px;background:${c>=enc?'#fde0db':'#e3f6ea'};color:${c>=enc?'#c0492f':'#1c7a43'}">🐾 ${c}/${enc}</span></div>
+        <div class="meters">${meterBar("🍖 Hunger",mm.h,"#fb9a2e")}${meterBar("💧 Thirst",mm.t,"#3a9ef5")}${meterBar("🧼 Clean",mm.c,"#43cc66")}${meterBar("😊 Happy",mm.p,"#fb5b99")}</div>
+        <div class="care">
+          ${careBtn(k,'h','Cho ăn')}${careBtn(k,'t','Cho uống')}${careBtn(k,'c','Tắm')}${careBtn(k,'p','Vuốt ve')}</div>
+        ${S.level>=4?`<div class="econ">
+          <button class="act b-amber ${S.guide==='buymore'?glowMark('buy'):''}" ${c>=enc?'disabled':''} onclick="buyMore('${k}')">${c>=enc?'Đầy — hãy nâng chuồng ↑':'Nuôi thêm · '+costLabel('buy',buyCost(k))}</button>
+          <button class="act b-amber ${S.guide==='econ'?glowMark('upgrade'):''}" ${enc>=5?'disabled':''} onclick="upgrade('${k}')">${enc>=5?'Chuồng tối đa':'Nâng chuồng · '+costLabel('upgrade',upgradeCost(k))}</button></div>`:''}</div>`;}
+    h+=`<h2>Nhận nuôi (thêm loài = đông khách hơn)</h2>`;
+    for(const a of ANIMALS){if(S.owned.includes(a.key))continue;const ok=S.level>=a.unlock;
+      h+=`<div class="card"><div class="row"><div class="emoji">${a.emoji}</div>
+        <div class="grow"><div class="name">${a.name}</div><div class="sub">Sức hút ${a.tier}${a.rarity>1?` · hiếm ×${a.rarity}`:''}</div></div>
+        ${ok?`<button class="act b-green ${(S.guide==='adopt'||S.guide==='first')?glowMark('adopt'):''}" onclick="adopt('${a.key}')">Nhận nuôi · ${costLabel('buy',buyCost(a.key))}</button>`:`<span class="tag lock">Cấp ${a.unlock}</span>`}</div></div>`;}
+  }
+  else if(tab==="attract"){
+    h+=`<div class="note">Khu vui chơi giúp khách <b>tiêu nhiều tiền hơn</b> (+${(K.ATTR_SPEND*100)|0}%/cái) và sở thú <b>chứa thêm khách</b> (+${(K.ATTR_CAP*100)|0}%/cái). Mở dần theo cấp.</div>`;
+    for(const a of ATTRACTIONS){const built=S.built.includes(a.key),ok=S.level>=a.unlock;
+      h+=`<div class="card"><div class="row"><div class="emoji">🎡</div><div class="grow"><div class="name">${a.name}</div><div class="sub">${costLabel('build',a.cost)} · Cấp ${a.unlock}</div></div>
+        ${built?`<span class="tag max">Đã xây</span>`:ok?`<button class="act b-blue ${S.guide==='attract'?glowMark('build'):''}" onclick="build(ATTRACTIONS[${ATTRACTIONS.indexOf(a)}])">Xây · ${costLabel('build',a.cost)}</button>`:`<span class="tag lock">Cấp ${a.unlock}</span>`}</div></div>`;}
+  }
+  else if(tab==="activities"){
+    h+=`<div class="note">Activities: +gold, +XP (gold/8), <b>+rep</b> (rep → returnVisitorBonus → +revenue). Cooldown = trần chống grind.</div>`;
+    const now=Date.now();
+    for(const act of ACTIVITIES){const owned=S.owned.includes(act.animal),rem=act.cd-(now-(S.activityLast[act.name]||0))/1000;
+      let right;if(!owned)right=`<span class="tag lock">Cần ${ANIMAL[act.animal].name}</span>`;
+      else if(rem>0)right=`<span class="tag lock">Ready ${Math.ceil(rem)}s</span>`;
+      else right=`<button class="act b-green ${S.guide==='activities'?glowMark('act'):''}" onclick="doActivity(ACTIVITIES[${ACTIVITIES.indexOf(act)}])">Làm (+${act.gold}g)</button>`;
+      h+=`<div class="card"><div class="row"><div class="grow"><div class="name">${act.name}</div><div class="sub">+${act.gold.toLocaleString()}g  +${Math.floor(act.gold/8)} XP  +${K.REP_PER_ACTIVITY} rep · ${act.cd}s</div></div>${right}</div></div>`;}
+  }
+  else if(tab==="shop"){
+    h+=`<div class="card"><div class="name">Số dư</div><div class="sub">🪙 ${Math.floor(S.gold).toLocaleString()} · 💎 ${S.gems} · 💗 ${S.rep} danh tiếng (khách quay lại ×${returnBonus().toFixed(2)})</div></div>`;
+    h+=`<h2>Đổi Gem → Gold</h2>`;
+    h+=`<div class="card"><div class="row"><div class="grow">1 💎 → 500 🪙</div><button class="act b-amber" ${S.gems<1?'disabled':''} onclick="gem2gold(1,500)">Đổi</button></div></div>`;
+    h+=`<div class="card"><div class="row"><div class="grow">5 💎 → 3.000 🪙</div><button class="act b-amber" ${S.gems<5?'disabled':''} onclick="gem2gold(5,3000)">Đổi</button></div></div>`;
+    h+=`<h2>Daily Gift</h2><div class="card"><div class="row"><div class="grow">+200 🪙 (1 lần / phiên)</div>${S.dailyGiftClaimed?`<span class="tag max">Đã nhận</span>`:`<button class="act b-green" onclick="dailyGift()">Nhận</button>`}</div></div>`;
+  }
+  else if(tab==="dev"){
+    h+=`<div class="note">Bảng dev — test nhanh & cảm nhận. Không phải gameplay.</div>`;
+    h+=`<div class="card" style="border-color:#2e9e5b">
+      <div class="name">🌙 Education XP (backbone idle — BẬT mặc định)</div>
+      <div class="sub">#1: mỗi giây XP += visitors × K (zoo tự lên cấp, scale theo visitor). Cũng cộng XP offline (#2). Tắt để so sánh "tap-only".</div>
+      <div class="row" style="margin-top:8px;gap:10px;flex-wrap:wrap">
+        <button class="act ${S.passiveXp?'b-green':'b-amber'}" onclick="togglePassive()">${S.passiveXp?'ĐANG BẬT — tắt':'ĐANG TẮT — bật'}</button>
+        <div>K = <input type="number" step="0.5" value="${S.xpPerVisitor||2}" style="width:64px;padding:5px;border:1px solid #ccc;border-radius:6px" onchange="setK(this.value)"> XP/visitor/giây</div></div>
+      <div class="sub" style="margin-top:6px">Rate: ${visitorsNow()} × ${(S.xpPerVisitor||2)} = <b>${(visitorsNow()*(S.xpPerVisitor||2)).toFixed(1)} XP/s</b></div></div>`;
+    h+=`<div class="card">
+      <button class="devbtn" onclick="addXp(5000);afterAction()">+5.000 XP</button>
+      <button class="devbtn" onclick="S.gold+=100000;afterAction()">+100k Gold</button>
+      <button class="devbtn" onclick="S.gems+=50;afterAction()">+50 Gems</button>
+      <button class="devbtn" onclick="simOffline()">Giả lập offline 8h</button>
+      <button class="devbtn" onclick="hardReset()">Reset</button></div>`;
+    h+=`<div class="card"><div class="diag">
+      totalAppeal ${Math.round(totalAppeal())} (diversity ×${diversityBonus().toFixed(2)}, ${distinctOwned()} loài) · capacity ${capacity()} · visitors ${visitorsNow()}<br>
+      returnBonus ×${returnBonus().toFixed(2)} · attr spend +${(K.ATTR_SPEND*S.built.length*100)|0}% · gold/s ${goldPerSec()}<br>
+      <b>Nút thắt: ${bottleneck()}</b></div></div>`;
+  }
+  $("body").innerHTML=h;
+}
+function render(){renderHud();renderNav();renderBody();}
+
+let toastT=null;
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1500);}
+function showModal(title,html,delayMs){
+  const close="document.getElementById('overlay').innerHTML=''";
+  const sec=delayMs>0?Math.ceil(delayMs/1000):0;
+  const btn=sec>0
+    ? `<button id="modalOk" class="act b-green" disabled style="opacity:.45;cursor:default" onclick="${close}">Đợi ${sec}s…</button>`
+    : `<button class="act b-green" onclick="${close}">OK</button>`;
+  $("overlay").innerHTML=`<div class="modal"><div class="box"><h3>${title}</h3><div>${html}</div><br>${btn}</div></div>`;
+  if(sec>0){let left=sec;const iv=setInterval(()=>{const b=document.getElementById("modalOk");
+    if(!b){clearInterval(iv);return;}   // modal đã bị thay → dừng đếm
+    left--;
+    if(left>0){b.textContent="Đợi "+left+"s…";}
+    else{clearInterval(iv);b.disabled=false;b.style.opacity="1";b.style.cursor="pointer";b.textContent="OK";}
+  },1000);}
+}
+
+function tick(){
+  for(const k of S.owned){const mm=S.meters[k]||(S.meters[k]=m());
+    // decay tăng tốc ~50× cho prototype để THẤY rõ: thú tụt chỉ số → khách giảm (≈15 phút cạn)
+    mm.h=Math.max(0,mm.h-3/36);mm.t=Math.max(0,mm.t-4/36);mm.c=Math.max(0,mm.c-3/36);mm.p=Math.max(0,mm.p-2/36);}
+  if(!S.xpLocked)S.gold+=goldPerSec();   // vàng khóa như XP tới khi mua con thú đầu
+  if(S.passiveXp)addXp(visitorsNow()*(S.xpPerVisitor||2));   // addXp tự bỏ qua khi xpLocked
+  renderHud();
+  renderNav();   // cập nhật khóa/sáng nav mỗi giây (vd lên cấp khi đang idle → nav sáng dẫn đường)
+  if(tab==="animals"||tab==="activities"||tab==="dev")renderBody();
+  save();
+}
+
+S=load();if(S){applyOffline();}else{S=newGame();}
+maybeGuide(S.level);
+render();
+if(S.guide)showGuidePopup(S.guide);   // popup hướng dẫn cho bước hiện tại
+setInterval(tick,1000);
+window.addEventListener("visibilitychange",()=>{if(document.hidden)save();});
+window.addEventListener("beforeunload",save);
+</script>
+</body>
+</html>
